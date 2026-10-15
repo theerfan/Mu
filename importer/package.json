@@ -1,0 +1,20 @@
+{
+  "name": "mu-importer",
+  "version": "1.0.0",
+  "description": "Guitar Pro / MusicXML -> Mu song JSON",
+  "main": "mu-import.mjs",
+  "scripts": {
+    "test": "node test.mjs",
+    "make-samples": "node samples/make_gp7.mjs"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@coderline/alphatab": "^1.8.4"
+  },
+  "private": true,
+  "type": "module",
+  "bin": {
+    "mu-import": "mu-import.mjs"
+  }
+}

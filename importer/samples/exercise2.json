@@ -1,0 +1,156 @@
+{
+ "schema": 1,
+ "title": "Mu Exercise 2",
+ "artist": "theerfan",
+ "source": "musicxml",
+ "track": "Guitar",
+ "tuning": [
+  40,
+  45,
+  50,
+  55,
+  59,
+  64
+ ],
+ "capo": 0,
+ "tempoMap": [
+  {
+   "beat": 0,
+   "bpm": 90
+  }
+ ],
+ "timeSig": [
+  {
+   "bar": 0,
+   "num": 4,
+   "den": 4
+  }
+ ],
+ "sections": [],
+ "events": [
+  {
+   "t": 0,
+   "dur": 0.667,
+   "notes": [
+    {
+     "string": 6,
+     "fret": 0,
+     "midi": 40
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 0.667,
+   "dur": 0.667,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 0,
+     "midi": 45
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 1.333,
+   "dur": 0.667,
+   "notes": [
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 2,
+   "dur": 0.667,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 2.667,
+   "dur": 0.333,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 5,
+     "midi": 60
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 3,
+   "dur": 0.333,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 7,
+     "midi": 62
+    }
+   ],
+   "tech": [
+    "hammer"
+   ]
+  },
+  {
+   "t": 3.333,
+   "dur": 0.667,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 7,
+     "midi": 62
+    }
+   ],
+   "tech": [
+    {
+     "type": "bend",
+     "semitones": 2
+    }
+   ]
+  },
+  {
+   "t": 4,
+   "dur": 1.333,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": []
+  }
+ ],
+ "duration": 5.333
+}

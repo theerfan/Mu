@@ -1,0 +1,306 @@
+{
+ "schema": 1,
+ "title": "Mu Exercise 1",
+ "artist": "theerfan",
+ "source": "alphatex",
+ "track": "Guitar",
+ "tuning": [
+  40,
+  45,
+  50,
+  55,
+  59,
+  64
+ ],
+ "capo": 0,
+ "tempoMap": [
+  {
+   "beat": 0,
+   "bpm": 90
+  },
+  {
+   "beat": 8,
+   "bpm": 120
+  }
+ ],
+ "timeSig": [
+  {
+   "bar": 0,
+   "num": 4,
+   "den": 4
+  }
+ ],
+ "sections": [
+  {
+   "name": "Intro",
+   "start": 0,
+   "end": 5.333
+  },
+  {
+   "name": "Verse",
+   "start": 5.333,
+   "end": 9.333
+  }
+ ],
+ "events": [
+  {
+   "t": 0,
+   "dur": 0.667,
+   "notes": [
+    {
+     "string": 6,
+     "fret": 0,
+     "midi": 40
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 0.667,
+   "dur": 0.667,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 0,
+     "midi": 45
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 1.333,
+   "dur": 0.667,
+   "notes": [
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 2,
+   "dur": 0.667,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 2.667,
+   "dur": 0.333,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 5,
+     "midi": 60
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 3,
+   "dur": 0.333,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 7,
+     "midi": 62
+    }
+   ],
+   "tech": [
+    "hammer"
+   ]
+  },
+  {
+   "t": 3.333,
+   "dur": 0.333,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 7,
+     "midi": 62
+    }
+   ],
+   "tech": [
+    {
+     "type": "bend",
+     "semitones": 2
+    }
+   ]
+  },
+  {
+   "t": 3.667,
+   "dur": 0.333,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 5,
+     "midi": 60
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 4,
+   "dur": 1.333,
+   "chord": "C",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 5.333,
+   "dur": 1,
+   "chord": "G",
+   "notes": [
+    {
+     "string": 6,
+     "fret": 3,
+     "midi": 43
+    },
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    },
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 3,
+     "midi": 67
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 6.333,
+   "dur": 1,
+   "chord": "Em",
+   "notes": [
+    {
+     "string": 6,
+     "fret": 0,
+     "midi": 40
+    },
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_up"
+   ]
+  },
+  {
+   "t": 7.333,
+   "dur": 0.5,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    }
+   ],
+   "tech": [
+    "palm_mute"
+   ]
+  },
+  {
+   "t": 7.833,
+   "dur": 0.5,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    }
+   ],
+   "tech": [
+    "palm_mute"
+   ]
+  },
+  {
+   "t": 8.333,
+   "dur": 1,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    }
+   ],
+   "tech": []
+  }
+ ],
+ "duration": 9.333
+}
