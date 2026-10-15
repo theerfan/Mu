@@ -1,0 +1,9 @@
+sr=48000 onsetFrame=2048 hop=512 (10.67 ms) yinWindow=4096 chordSegment=35520
+FFT (onset frame size)             mean    20.47 us  p50    19.76  p99    38.05  | budget   10667 us ->  0.19% | allocs/call 0
+SpectrumAnalyzer (onset frame)     mean    26.09 us  p50    24.41  p99    46.52  | budget   10667 us ->  0.24% | allocs/call 0
+OnsetDetector::processHop          mean    38.93 us  p50    38.30  p99    48.14  | budget   10667 us ->  0.36% | allocs/call 0
+YinPitch::process (70 Hz min)      mean  1369.98 us  p50  1317.63  p99  1821.38  | budget   10667 us -> 12.84% | allocs/call 0
+ChordVerifier::verify              mean   673.61 us  p50   668.59  p99   868.46  | budget   10667 us ->  6.32% | allocs/call 0
+ChordVerifier::verify (+pre diff)  mean  2124.88 us  p50  1937.09  p99  3616.24  | budget   10667 us -> 19.92% | allocs/call 0
+budget = one hop of real time. YIN runs ~3x per onset and verify once per expected chord,
+so they may be scheduled across hops on the analysis thread rather than per hop.
