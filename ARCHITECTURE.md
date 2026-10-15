@@ -33,7 +33,8 @@ Backing track/metronome ◄── Oboe output callback (same clock) ◄── mi
 * **Audio callback threads** (Oboe input + output, full-duplex): no allocation, locks, logging or JNI calls.
   They only copy samples into or out of preallocated rings and read atomics (play state, transport position).
 * **Analysis thread** (normal priority, no `SCHED_FIFO` needed): pulls hops from the ring and runs the DSP.
-  Budget: <2 ms per 256-sample hop. Expected cost (not yet measured on device): FFT1024 + YIN should be well under 1 ms on mid-range ARM.
+  Budget per hop (512 @ 48 kHz = 10.7 ms): onset 39 µs on the dev box (est. 0.12–0.2 ms on phone); YIN 1.4 ms and
+  chord verify 0.7–2.1 ms per call on the dev box (est. 3–5× on phone), run once per onset / expected chord (README benchmark).
 * **UI thread**: polls the event queue each frame (Choreographer), interpolates the transport position from the
   last `(framePosition, systemNanos)` timestamp pair so scrolling stays smooth.
 * All queues are SPSC lock-free with fixed capacity, and they drop on overflow (counted).
@@ -74,7 +75,9 @@ Expected events E_j = {t_j, string, fret, midi(s), dur, technique}; detected eve
 ```json
 {
   "schema": 1,
-  "title": "Example", "artist": "...", "source": "gp5|musicxml|manual",
+  "title": "Example", "artist": "...", "source": "gp7|gpx|gp5|gp4|gp3|musicxml|alphatex|manual",
+  "track": "Guitar",                            // which track of the source file
+  "duration": 120.5,                            // seconds
   "tuning": [40, 45, 50, 55, 59, 64],          // MIDI, string 6 (low E) .. string 1
   "capo": 0,
   "tempoMap": [{"beat": 0, "bpm": 92}],          // beats → seconds; events also carry absolute time
@@ -93,7 +96,9 @@ Expected events E_j = {t_j, string, fret, midi(s), dur, technique}; detected eve
 }
 ```
 `tech` values: `hammer`, `pull`, `slide`, `bend{semitones}`, `vibrato`, `palm_mute`, `harmonic`, `dead`,
-`strum_down/up`. `midi` gets precomputed from tuning+capo+fret, so the scorer never re-derives it.
+`strum_down/up`, `arpeggio_down/up`. Per-note `tech` (same values) is used when a chord's notes differ in technique; for single notes it sits on the
+event. `strum_*`/`arpeggio_*` are event-level. `midi` gets precomputed from tuning+capo+fret, so the scorer never
+re-derives it. Implemented by `importer/mu-import.mjs` (see README).
 **Import**: run alphaTab (JS) in a Node script or headless WebView to parse .gp3–.gp7/.gpx/MusicXML →
 walk tracks/bars/beats/notes → emit the JSON above with absolute seconds from the tempo map. For personal use an
 offline desktop/Node converter is fine, and you'd only push JSON + audio to the phone.
@@ -113,7 +118,8 @@ offline desktop/Node converter is fine, and you'd only push JSON + audio to the 
   the PoC), so it needs no resampling.
 
 ## 8. Milestones
-1. **M0 – DSP PoC (done)**: YIN, spectral flux, chroma verifier, WAV CLI, synthetic tests.
+1. **M0 – DSP PoC (done)**: YIN, spectral flux, chroma verifier, WAV CLI, synthetic tests; real-time-safe analyzers,
+   benchmark, chord margins (unexplained-peak penalty + onset-local spectral difference), importer started (M4).
 2. **M1 – Real-audio validation** (1–2 wk): record 30+ real guitar clips with your phone (single notes per string,
    10 common chords, wrong-chord negatives). Tune thresholds and add MPM as an alternative for the low E and
    noisy input. Make the test-suite fixtures include the real clips.
