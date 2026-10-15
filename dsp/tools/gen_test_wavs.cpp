@@ -60,5 +60,14 @@ int main(int argc, char** argv) {
     // stereo 48k-style interleave test: duplicate channel with slight gain difference
     std::vector<float> st(x.size() * 2); for (size_t i = 0; i < x.size(); ++i) { st[2 * i] = x[i]; st[2 * i + 1] = 0.8f * x[i]; }
     writeWav16(d + "/chords_C_then_G_stereo.wav", st, sr, 2); }
+  // Chords sharing notes, and transitions where the previous chord keeps ringing (1.0 s apart).
+  const std::vector<int> Am = {45, 52, 57, 60, 64};      // open Am: A2 E3 A3 C4 E4
+  const std::vector<int> Em = {40, 47, 52, 55, 59, 64};  // open Em: E2 B2 E3 G3 B3 E4
+  { std::vector<float> x; strum(x, sr, 0.3, Am); finish(x, 25); writeWav16(d + "/chord_Am.wav", x, sr); }
+  { std::vector<float> x; strum(x, sr, 0.3, Em); finish(x, 25); writeWav16(d + "/chord_Em.wav", x, sr); }
+  struct T { const char* n; const std::vector<int>* a; const std::vector<int>* b; } tr[] = {
+      {"C_Am", &Cmaj, &Am}, {"Am_C", &Am, &Cmaj}, {"G_Em", &Gmaj, &Em}, {"Em_G", &Em, &Gmaj}, {"C_G", &Cmaj, &Gmaj}};
+  for (auto& t : tr) { std::vector<float> x; strum(x, sr, 0.3, *t.a); strum(x, sr, 1.3, *t.b); finish(x, 25);
+    writeWav16(d + "/trans_" + t.n + ".wav", x, sr); }
   std::printf("wrote test wavs to %s\n", d.c_str());
 }
