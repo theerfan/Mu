@@ -60,8 +60,9 @@ Expected events E_j = {t_j, string, fret, midi(s), dur, technique}; detected eve
 2. **Pitch check**:
    * single note: detected midi == expected (allow ±1 octave as "octave error, partial credit"), |cents| ≤ 35 counts as
      in-tune. Re-evaluate pitch over 3 frames, since the attack can read sharp.
-   * chord: `verifyChord(segment, expected midis)`, score ≥ τ (0.75 by default) counts as a hit, and scores in
-     0.5–τ get "partial". This is verification against the score, not transcription.
+   * chord: `ChordVerifier::verify(segment, expected midis)`, score ≥ τ (0.58, tuned on GuitarSet) counts as a hit; raise τ
+     when the session noise floor is high (FPR grows with noise). Scores in
+     0.4–τ get "partial". This is verification against the score, not transcription.
    * Sustains: re-check pitch/chroma at 50 % of duration. Bends: track f0 over time, compare with the target interval.
 3. **Assignment**: greedy in time order (or Hungarian over a small window) so a detection counts for at most one
    expected note. A detection with no expected note counts as an "extra" (feedback only, no penalty by default).

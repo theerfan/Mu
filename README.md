@@ -29,22 +29,27 @@ cd dsp && cmake -S . -B build && cmake --build build
 ```
 
 ## How it works
-* **Onsets**: spectral flux on log-compressed (log1p(100|X|)) Hann-windowed magnitudes, ~23 ms frame, hop = frame/4,
-  half-wave-rectified, threshold = 1.5×median(last 16 frames)+const, local-max peak picking, 60 ms min gap,
-  RMS silence gate and 100 ms warm-up. Streaming API (`processHop`), so it's the same code as runs on device.
-* **Pitch**: YIN (difference fn → cumulative-mean normalisation → absolute threshold 0.15 → parabolic interpolation),
-  70–1400 Hz, ~45 ms window; the CLI takes the median of 3 frames starting 40 ms after onset (skipping the pick transient).
+* **Onsets**: SuperFlux-style spectral flux on log-compressed (log1p(100|X|)) Hann-windowed magnitudes, ≥1024-pt
+  (~23 ms) frame, hop = frame/4: compare with the frame 3 hops back after a ±2-bin max filter over frequency, bins
+  ≤5 kHz only, half-wave-rectified; threshold = 1.1×median(last 16 frames)+0.02, local-max peak picking, 60 ms min
+  gap, RMS silence gate and 100 ms warm-up (v0: lag 1, no max filter, all bins, 1.5×median+0.06 — see GuitarSet). Streaming API (`processHop`), so it's the same code as runs on device.
+* **Pitch**: YIN (difference fn → cumulative-mean normalisation → absolute threshold 0.2 → parabolic interpolation),
+  70–1400 Hz, ~45 ms window, plus a sub-octave guard (switch to τ/2 or τ/3 if d′ there is < 0.5 and ≤ d′(τ)+0.2) and
+  a lower voicing bar (1−d′ > 0.3) so noisy notes still get a pitch (v0: threshold 0.15, no guard, 0.7); the CLI takes the median of 3 frames starting 40 ms after onset (skipping the pick transient).
 * **Chord verification** (`ChordVerifier`): FFT (≤32768 pts, preallocated) of the 60–800 ms after the onset →
   peak-picked spectrum (70–2000 Hz) → 12-bin chroma (sqrt magnitude, L2 norm). The expected template puts each
   expected note's harmonics 1–8 (minus 7th) on their pitch classes with weight 1/√h. Then:
   * `cosine` = cos(chroma, template); `coverage` = fraction of expected pitch classes with ≥25 % of max chroma.
   * **Unexplained-peak penalty**: because the score says exactly which notes (MIDI, not just pitch class) should
-    sound, every clear spectral peak ≤1.2 kHz (≥5 % of max) should be within (30 + 3h) cents of harmonic h ≤ 12 of
-    some expected note. `unexplained` = sqrt-magnitude share of peaks that fit none.
-  * **Onset-local spectral difference**: the spectrum of 300 ms ending 20 ms before the onset (the still-ringing
-    previous chord) is subtracted, ×0.8, from the post-onset spectrum *for the unexplained test only*. Chroma/
+    sound, every clear spectral peak ≤1.2 kHz (≥15 % of max, at or above the lowest expected note) should be within
+    (30 + 3h) cents of harmonic h ≤ 12 of some expected note. `unexplained` = magnitude²-weighted share of peaks that
+    fit none (v0: ≥5 % of max, sqrt weighting, all peaks — real guitars' ~100 Hz body resonance alone tripped it).
+  * **Onset-local spectral difference** (library default now off, `preSubtract = 0`; `gtcli` keeps it at 0.8 unless
+    `--no-diff`): the spectrum of 300 ms ending 20 ms before the onset (the still-ringing previous chord) is
+    subtracted, ×β, from the post-onset spectrum *for the unexplained test only*. Chroma/
     coverage use the raw spectrum, so notes shared with the previous chord (which get re-plucked) still count.
-  * `score = cosine × coverage × max(0, 1 − 3·unexplained)`; MATCH if score ≥ 0.6.
+  * `score = cosine × coverage × max(0, 1 − 0.25·unexplained)`; MATCH if score ≥ 0.58 (`kChordMatchThreshold`).
+    v0 used penalty 3 and threshold 0.6; on real guitar audio that rejected ~75 % of correct chords (see below).
   Purity (energy share in the expected pitch classes) is still reported for diagnostics.
 * **Real-time safety**: `FFT`, `SpectrumAnalyzer`, `YinPitch`, `OnsetDetector`, `ChordVerifier` allocate everything
   in their constructors; their process/verify calls do no heap allocation (checked by `bench`'s instrumented
@@ -97,6 +102,10 @@ PASS  G after C (prev ringing) vs C score=0.000 expected nomatch
 == 36 passed, 0 failed
 ```
 
+Since the GuitarSet retune, 8 synthetic checks are expected failures (`XFAIL`): wrong chords that share notes
+with the played chord are no longer rejected on this perfectly harmonic synthetic audio, and one 22.05 kHz note gets
+a second onset in its tail. That's the trade-off the real-data tuning picked (see "GuitarSet evaluation").
+
 ### Chord score matrix (`dsp/test/chord_table.sh`; bold = correct expectation)
 Before (v0: cosine × coverage, threshold 0.75). Note the false matches, e.g. C audio vs expected Em = 0.826,
 Em vs G = 0.760, and correct "Am after C" (0.762) scoring below wrong C (0.777):
@@ -126,34 +135,51 @@ After (penalty + onset-local difference, threshold 0.6). Lowest correct = 0.752,
 | G after C | 0.000 | **0.833** | 0.000 | 0.199 |
 
 Ablation: without the pre-onset subtraction (`--no-diff`) the transition rows' correct scores fall to 0.38–0.54
-(previous chord's ringing notes are counted as unexplained), so both parts are needed.
+(previous chord's ringing notes are counted as unexplained), so both parts are needed *with that strong penalty*.
+
+Current defaults (GuitarSet-tuned penalty 0.25, threshold 0.58). Correct chords still score 0.81–0.88, but
+shared-note wrong chords now reach 0.81 (C audio vs Em), so this synthetic matrix no longer separates them; on real
+audio the tuned setting is clearly better (AUC 0.73 → 0.95):
+| audio (onset) | exp C | exp G | exp Am | exp Em |
+|---|---|---|---|---|
+| C | **0.879** | 0.530 | 0.459 | 0.813 |
+| G | 0.145 | **0.873** | 0.125 | 0.412 |
+| Am | 0.655 | 0.277 | **0.882** | 0.559 |
+| Em | 0.385 | 0.723 | 0.365 | **0.825** |
+| Am after C | 0.658 | 0.372 | **0.811** | 0.585 |
+| C after Am | **0.858** | 0.540 | 0.787 | 0.739 |
+| Em after G | 0.412 | 0.662 | 0.416 | **0.810** |
+| G after Em | 0.360 | **0.846** | 0.295 | 0.684 |
+| G after C | 0.566 | **0.833** | 0.475 | 0.696 |
 
 ## Benchmark (`dsp/build/bench 48000`, this box: Intel Xeon VM, -O3 default Release, single thread)
 ```
 sr=48000 onsetFrame=2048 hop=512 (10.67 ms) yinWindow=4096 chordSegment=35520
-FFT (onset frame size)             mean    20.47 us  p50    19.76  p99    38.05  | budget   10667 us ->  0.19% | allocs/call 0
-SpectrumAnalyzer (onset frame)     mean    26.09 us  p50    24.41  p99    46.52  | budget   10667 us ->  0.24% | allocs/call 0
-OnsetDetector::processHop          mean    38.93 us  p50    38.30  p99    48.14  | budget   10667 us ->  0.36% | allocs/call 0
-YinPitch::process (70 Hz min)      mean  1369.98 us  p50  1317.63  p99  1821.38  | budget   10667 us -> 12.84% | allocs/call 0
-ChordVerifier::verify              mean   673.61 us  p50   668.59  p99   868.46  | budget   10667 us ->  6.32% | allocs/call 0
-ChordVerifier::verify (+pre diff)  mean  2124.88 us  p50  1937.09  p99  3616.24  | budget   10667 us -> 19.92% | allocs/call 0
+FFT (onset frame size)             mean    19.57 us  p50    19.20  p99    31.73  | budget   10667 us ->  0.18% | allocs/call 0
+SpectrumAnalyzer (onset frame)     mean    25.94 us  p50    23.09  p99    54.09  | budget   10667 us ->  0.24% | allocs/call 0
+OnsetDetector::processHop          mean    30.50 us  p50    28.89  p99    51.29  | budget   10667 us ->  0.29% | allocs/call 0
+YinPitch::process (70 Hz min)      mean  1232.28 us  p50  1227.26  p99  1414.92  | budget   10667 us -> 11.55% | allocs/call 0
+ChordVerifier::verify              mean   619.04 us  p50   617.77  p99   739.94  | budget   10667 us ->  5.80% | allocs/call 0
+ChordVerifier::verify (+pre diff)  mean   629.02 us  p50   624.00  p99   740.61  | budget   10667 us ->  5.90% | allocs/call 0
 budget = one hop of real time. YIN runs ~3x per onset and verify once per expected chord,
 so they may be scheduled across hops on the analysis thread rather than per hop.
 ```
 Phone estimate (mid-range ARM, ~3–5× slower): onset hop ≈ 0.12–0.2 ms per 10.7 ms hop (1–2 %); YIN ≈ 4–7 ms
-per call (×3 per onset); chord verify ≈ 2–3.5 ms, with pre-diff ≈ 6–11 ms, once per expected chord. All fit on
+per call (×3 per onset); chord verify ≈ 2–3.5 ms (pre-diff is off by default now; with it ≈ 6–11 ms), once per
+expected chord. All fit on
 the analysis thread (not the audio callback). Cheap wins if needed: FFT-based YIN difference function (O(N log N),
 ~20× faster), smaller YIN window above E2, SIMD FFT (pffft), and caching the pre-onset spectrum continuously.
 
 ## Known limitations
-* Only tested on synthetic Karplus-Strong audio with white noise. Real guitars (inharmonicity, body resonance,
-  fret buzz, room reverb, phone mic AGC) haven't been tested yet; next step is a set of real recordings.
+* Real-audio results come from GuitarSet's mic recordings (one acoustic guitar, one room, 6 players), plus synthetic
+  noise and band-pass. That's still not a phone: there's no phone AGC/noise suppression, no electric guitar, and no
+  real room noise. See "GuitarSet evaluation" for the remaining failure modes.
 * Onset times come out quantised to the hop (~5.8 ms) and include a fixed estimator offset (+0–6 ms in the tests).
   On device this offset gets absorbed by latency calibration.
-* Chord margins are now ~0.35 on synthetic audio (lowest correct 0.752, highest wrong 0.405), but the
-  unexplained-peak test assumes the player uses the *voicing in the score*: an alternative voicing of the
-  right chord (e.g. barre C instead of open C) adds "unexplained" peaks and will be penalised. Real-string
-  inharmonicity is only covered by the widening tolerance; thresholds must be re-tuned on real recordings.
+* Chord verification can't reliably reject a wrong chord that differs by one note (maj vs maj7, C vs Am): about 20 %
+  of shared-note negatives pass on clean real audio. The unexplained-peak penalty is kept weak (0.25) because
+  stronger values cost far more true chords than they save, especially when the expected notes come from a lead
+  sheet rather than the exact voicing.
 * Chroma can't tell octaves or voicings apart (C3 vs C4), and it can't check *which string*. That's fine for
   verification-style scoring but not for transcription.
 * YIN only handles one note at a time. On a chord it returns something arbitrary, so the CLI marks it unreliable.
@@ -192,3 +218,70 @@ pass; slides are recorded as a flag only (no target fret); bends record the max 
 automations inside a bar are honoured but tempo ramps (gradual) are treated as steps. Regenerate samples with
 `/path/to/venv/bin/python samples/make_gp5.py samples/exercise2.gp5` (needs `pip install pyguitarpro`) and
 `npm run make-samples`.
+
+## GuitarSet evaluation (`eval/`)
+Evaluates pitch, onsets and chord verification on **real** guitar recordings. Data: [GuitarSet](https://zenodo.org/records/3371780)
+(Xi et al., ISMIR 2018, CC BY 4.0). 360 thirty-second excerpts, 6 players × 5 styles × 3 progressions × comp/solo,
+acoustic guitar, recorded with a mic (`audio_mono-mic`, 656 MB zip). JAMS annotations (39 MB) have per-string
+note_midi and chord labels. 1.5 GB on disk; it lives in `data/` (gitignored), and only scripts are committed.
+```
+./eval/download_guitarset.sh                # -> data/guitarset/{annotation,audio_mono-mic}
+python3 -m venv venv && venv/bin/pip install -r eval/requirements.txt
+PYTHON=venv/bin/python ./eval/run_eval.sh   # before/after on the TEST split, all conditions -> eval/results/
+venv/bin/python eval/tune_chord.py          # grid searches on the TRAIN split (players 00-03)
+venv/bin/python eval/tune_pitch_onset.py pitch|onset
+```
+* `dsp/tools/gdsp_eval.cpp` is a batch CLI over the same library code (`O` onsets, `P t` pitch, `C t end midis…`
+  chord). Any parameter can be overridden from the command line; anything not given uses the library default.
+* **Split**: tuning used only players 00–03 (240 files). All numbers below are on the held-out players 04–05
+  (120 files). Train noise was clean+pink20 (chords) or clean+pink10 (pitch/onsets).
+* **Conditions**: clean; pink noise at 20/10 dB SNR; white noise at 15 dB; "phone" = 150–6000 Hz band-pass + pink noise at 20 dB.
+* **Pitch**: isolated notes in solo takes (≥100 ms, no other note within 150 ms), YIN at the *annotated* onset
+  (so pitch errors aren't mixed up with onset errors), correct if within ±50 cents of the annotated MIDI.
+* **Onsets**: annotated note onsets with notes <50 ms apart merged into one event (a strum = one event), matched ±50 ms.
+* **Chords**: comp takes. Each group of ≥3 strings starting within 60 ms is one chord. The expected notes are the annotated
+  sounding notes, and the audio window is 60 ms–0.8 s after the chord starts, cut at the next note onset. Negatives: the same audio vs
+  another chord's notes sharing ≤1 pitch class, or ≥2 pitch classes with a different chord label. "Lead-sheet":
+  expected = canonical voicing of the instructed chord label (not what was played).
+
+Full tables: [`eval/results/SUMMARY.md`](eval/results/SUMMARY.md) (raw JSON alongside). Headline, TEST split:
+
+| | clean before → after | pink10 before → after | phone before → after |
+|---|---|---|---|
+| Pitch acc ±50 c | 96.0 → **96.5** | 82.5 → **92.5** | 95.9 → **96.6** |
+| Onset F (P/R) | 67.2 (55/86) → **72.7** (62/88) | 27.6 (96/16) → **75.1** (87/66) | 48.5 (92/33) → **80.1** (78/82) |
+| Chord AUC | 0.733 → **0.946** | 0.630 → **0.883** | 0.723 → **0.944** |
+| Chord TPR / FPR at threshold | 23.8 / 0.2 → **85.8 / 10.8** | 8.7 / 0.1 → **86.9 / 29.0** | 24.2 / 0.3 → **91.0 / 18.6** |
+
+**Tuned values (TRAIN split):**
+* YIN threshold 0.2, sub-octave guard 0.5 with margin 0.2, voicing bar 0.3.
+* Onsets: flux lag 3, ±2-bin max filter, ≤5 kHz, 1.1×median+0.02.
+* Chords: penalty k = 0.25, peak test magnitude², ≥15 % of max, ignores peaks below the bass note, no pre-diff, threshold 0.58.
+
+**Fixed failure modes:**
+* The voicing penalty was rejecting real correct chords. A ~106 Hz body/room resonance and other small peaks made
+  `unexplained` ≈ 0.3 median on correct chords, and penalty 3 scored them near 0.
+* YIN went unvoiced in noise (9.6 % at 10 dB → 1.5 %).
+* Sub-octave errors. The guard alone caused octave-*up* errors on clean audio (2 %), fixed with the margin test.
+* Onset recall collapsed in noise. Full-band flux was dominated by noise flicker; a band limit plus SuperFlux lag and max filter fixed it.
+* Spurious onsets inside strums (15.8 % → 8.6 % of detections on clean).
+
+**About the voicing penalty**: when the expected notes come from annotations of real playing, AUC peaks at a weak
+penalty (k = 0.25: 0.949 vs 0.942 without it) and falls steadily for stronger ones (k = 3: 0.876 even with the
+improved peak test, 0.736 with v0's). With lead-sheet expected notes, at the operating threshold the v0 setting
+accepted only 5.9 % of correct chords, against 58 % now. Exact-voicing checks only make sense when the song file gives
+the exact fingering *and* the player follows it, and even then real-guitar resonances call for a weak penalty.
+
+**Remaining failure modes:**
+* Chords differing by one note get confused, mostly maj ↔ maj7 (e.g. D# vs D#maj7 10/17 false matches) and
+  C ↔ Cmaj7. About 20 % of shared-note negatives pass on clean audio, 48 % at 10 dB SNR. A single fixed threshold is
+  also noise-dependent: FPR rises from 11 % clean to 29 % at pink 10 dB, so a per-session noise-floor estimate
+  (from calibration) should adjust it.
+* Onset precision on clean audio is only 62 %. There are extra detections on ringing/decaying notes, and
+  legato notes (hammer-ons, slides) have no attack and get missed. Solo F is 68.5 against comp F 76.5.
+* Pitch: ~3.5 % errors on clean audio, about a quarter of them octave errors. Accuracy is lowest on the high e string
+  (94.6 %). I haven't inspected the rest; bends/slides right after the onset and annotation offsets are the likely
+  causes.
+* GuitarSet is one acoustic guitar in one room. Results on a phone mic with AGC, an electric guitar, or real room
+  noise will differ. IDMT-SMT-Guitar / NSynth weren't used (GuitarSet covered the needs; they could add electric and
+  isolated-note coverage).
