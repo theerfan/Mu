@@ -1,1 +1,3 @@
 dsp/build/
+data/
+__pycache__/
