@@ -74,20 +74,44 @@ PitchResult YinPitch::process(const float* x) {
     if (d_[tau] < thr_) { while (tau + 1 < tauMax_ && d_[tau + 1] < d_[tau]) ++tau; best = tau; break; }
   bool voiced = best > 0;
   if (!voiced) { best = tauMin_; for (int t = tauMin_; t < tauMax_; ++t) if (d_[t] < d_[best]) best = t; }
+  if (subharmonicThr > 0) {
+    for (int k = 3; k >= 2; --k) {  // try the shortest period (highest pitch) first
+      int c = (int)std::lround((double)best / k);
+      if (c - 2 < tauMin_) continue;
+      int m = c; for (int t = c - 2; t <= c + 2 && t < tauMax_; ++t) if (d_[t] < d_[m]) m = t;
+      if (d_[m] < subharmonicThr && d_[m] <= d_[best] + subharmonicMargin && d_[m] <= d_[m - 1] && d_[m] <= d_[m + 1]) { best = m; voiced = true; break; }
+    }
+  }
   float t = (float)best;
   if (best > 1 && best < tauMax_) {
     float a = d_[best - 1], b = d_[best], c = d_[best + 1], den = a - 2 * b + c;
     if (std::fabs(den) > 1e-9f) t += 0.5f * (a - c) / den;
   }
-  r.freqHz = sr_ / t; r.confidence = std::max(0.f, 1.f - d_[best]); r.voiced = voiced || r.confidence > 0.7f;
+  r.freqHz = sr_ / t; r.confidence = std::max(0.f, 1.f - d_[best]); r.voiced = voiced || r.confidence > voicedConfidence;
   return r;
+}
+
+float pitchAfterOnset(YinPitch& yin, const float* x, long long n, long long s0, long long s1, int sr,
+                      float* confOut, int frames, float skipSec) {
+  float f0s[16]; int nf = 0; float conf = 0; const int W = yin.windowSize();
+  frames = std::min(frames, 16);
+  for (int j = 0; j < frames; ++j) {
+    long long st = s0 + (long long)(skipSec * sr) + (long long)j * W / 2;
+    if (st + W > s1 || st + W > n) break;
+    PitchResult p = yin.process(x + st);
+    if (p.voiced) { f0s[nf++] = p.freqHz; conf += p.confidence; }
+  }
+  if (confOut) *confOut = nf ? conf / nf : 0.f;
+  if (!nf) return 0.f;
+  std::sort(f0s, f0s + nf);
+  return f0s[nf / 2];
 }
 
 // ---------------- Onsets ----------------
 OnsetDetector::OnsetDetector(int sr, int N, int hop, float delta, float minGap)
     : sr_(sr), N_(N), hop_(hop), delta_(delta), spec_(N) {
   minGapFrames_ = std::max(1, (int)(minGap * sr / hop));
-  buf_.assign(N, 0.f); prevMag_.assign(N / 2 + 1, 0.f); fluxHist_.assign(16, 0.f); scratch_.assign(16, 0.f);
+  buf_.assign(N, 0.f); prevMag_.assign(N / 2 + 1, 0.f); logRing_.assign(4 * (N / 2 + 1), 0.f); fluxHist_.assign(16, 0.f); scratch_.assign(16, 0.f);
 }
 bool OnsetDetector::processHop(const float* in, long long& onsetSample) {
   std::move(buf_.begin() + hop_, buf_.end(), buf_.begin());
@@ -95,26 +119,31 @@ bool OnsetDetector::processHop(const float* in, long long& onsetSample) {
   // Raw (un-normalised) magnitudes keep the original log1p(100|X|) compression scale.
   const std::vector<float>& mag = spec_.process(buf_.data());
   const float g = N_ * 0.25f;  // undo 2/sum(hann) normalisation (sum(hann) ~= N/2)
+  const int B = (int)mag.size(), lag = std::min(3, std::max(1, fluxLag)), w = std::min(3, std::max(0, maxFilterBins));
+  float* cur = &logRing_[(frame_ % 4) * B];
+  const float* ref = &logRing_[((frame_ + 4 - lag) % 4) * B];
+  const int kMax = std::min(B - 1, (int)(fluxMaxHz * N_ / sr_));
+  for (int k = 0; k < B; ++k) cur[k] = std::log1p(100.f * mag[k] * g);
   double flux = 0;
-  for (size_t k = 1; k < mag.size(); ++k) {
-    float v = std::log1p(100.f * mag[k] * g);
-    float d = v - prevMag_[k]; if (d > 0) flux += d;
-    prevMag_[k] = v;
+  for (int k = 1; k <= kMax; ++k) {
+    float r = ref[k];
+    for (int j = std::max(0, k - w); j <= std::min(B - 1, k + w); ++j) r = std::max(r, ref[j]);
+    float d = cur[k] - r; if (d > 0) flux += d;
   }
-  flux /= mag.size();
+  flux /= B;
   const int H = (int)fluxHist_.size();
   fluxHist_[frame_ % H] = (float)flux;
   double e = 0; for (int i = N_ - hop_; i < N_; ++i) e += buf_[i] * buf_[i];
   float rms = (float)std::sqrt(e / hop_);
   bool onset = false;
-  if (frame_ >= std::max(N_ / hop_ + 2, (int)(0.1 * sr_ / hop_)) && rms > 0.005f) {  // warm-up + silence gate
+  if (frame_ >= std::max(N_ / hop_ + 2, (int)(0.1 * sr_ / hop_)) && rms > rmsGate) {  // warm-up + silence gate
     float cur = fluxHist_[frame_ % H], c = fluxHist_[(frame_ - 1) % H], p = fluxHist_[(frame_ - 2) % H];
     std::copy(fluxHist_.begin(), fluxHist_.end(), scratch_.begin());
     std::nth_element(scratch_.begin(), scratch_.begin() + H / 2, scratch_.end());
-    float thr = scratch_[H / 2] * 1.5f + delta_ * 0.1f;
+    float thr = scratch_[H / 2] * thrMult + thrAdd; (void)delta_;
     if (c > p && c >= cur && c > thr && (frame_ - 1) - lastOnset_ >= minGapFrames_) {
       onset = true; lastOnset_ = frame_ - 1;
-      onsetSample = std::max(0LL, (long long)(frame_) * hop_ - N_ / 4);
+      onsetSample = std::max(0LL, (long long)(frame_) * hop_ - N_ / 4 + (long long)(timeOffsetSec * sr_));
     }
   }
   ++frame_;
@@ -149,7 +178,7 @@ ChordMatch ChordVerifier::verify(const float* x, int len, const int* exp, int nE
   len = std::min(len, maxLen_);
   const std::vector<float>& m = spec_.process(x, len);
   std::copy(m.begin(), m.end(), post_.begin());
-  if (pre && preLen > len / 8) {  // onset-local spectral difference: remove still-ringing energy
+  if (pre && preLen > len / 8 && preSubtract > 0) {  // onset-local spectral difference: remove still-ringing energy
     const std::vector<float>& pm = spec_.process(pre, std::min(preLen, maxLen_));
     for (size_t k = 0; k < post_.size(); ++k) post_[k] = std::max(0.f, post_[k] - preSubtract * pm[k]);
     spec_.process(x, len);  // restore raw post-onset spectrum in spec_.mag() for chroma
@@ -181,25 +210,27 @@ ChordMatch ChordVerifier::verify(const float* x, int len, const int* exp, int nE
     for (size_t k = 1; k < post_.size(); ++k) pmax = std::max(pmax, post_[k]);
     double tot = 0, bad = 0;
     const float unexplainedMaxHz = 1200.f, tolPerH = 3.f; const int maxH = 12;
+    float lowest = 1e9f; for (int i = 0; i < nExp; ++i) lowest = std::min(lowest, (float)exp[i]);
     for (size_t k = 2; k + 1 < post_.size() && pmax > 0; ++k) {
       float f = (float)k * sr_ / n;
       if (f < 70.f || f > unexplainedMaxHz) continue;
       float b = post_[k];
-      if (b < post_[k - 1] || b < post_[k + 1] || b < 0.05f * pmax) continue;
+      if (b < post_[k - 1] || b < post_[k + 1] || b < peakRelThr * pmax) continue;
       float a = post_[k - 1], c = post_[k + 1], den = a - 2 * b + c;
       float fp = (k + (std::fabs(den) > 1e-12f ? 0.5f * (a - c) / den : 0.f)) * sr_ / n;
       float mp = freqToMidi(fp); bool ok = false;
+      if (ignoreBelowBass && mp < lowest - 0.5f) continue;
       for (int i = 0; i < nExp && !ok; ++i)
         for (int h = 1; h <= maxH && !ok; ++h) {
           float mh = exp[i] + 12.f * std::log2((float)h);
           if (std::fabs(mp - mh) * 100.f <= 30.f + tolPerH * h) ok = true;
         }
-      float w = std::sqrt(b); tot += w; if (!ok) bad += w;
+      float w = std::pow(b, unexplWeightExp); tot += w; if (!ok) bad += w;
     }
     r.unexplained = tot > 0 ? (float)(bad / tot) : 0.f;
   }
   int pcs = 0, present = 0;
-  for (int i = 0; i < 12; ++i) if (inSet[i]) { ++pcs; if (mx > 0 && ch[i] >= 0.25f * mx) ++present; }
+  for (int i = 0; i < 12; ++i) if (inSet[i]) { ++pcs; if (mx > 0 && ch[i] >= coverageRelThr * mx) ++present; }
   r.cosine = std::max(0.f, cos);
   r.coverage = pcs ? (float)present / pcs : 0; r.purity = totE > 0 ? inE / totE : 0;
   r.score = r.cosine * r.coverage;

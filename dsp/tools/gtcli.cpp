@@ -38,12 +38,13 @@ int main(int argc, char** argv) {
   const int sr = a.sampleRate;
   // Scale frame sizes with sample rate so behaviour is rate-independent.
   auto pow2 = [](double v) { int n = 1; while (n < v) n <<= 1; return n; };
-  const int onsetN = pow2(sr * 0.023), hop = onsetN / 4, yinW = pow2(sr * 0.045);
+  const int onsetN = std::max(1024, pow2(sr * 0.023)), hop = onsetN / 4, yinW = pow2(sr * 0.045);
   OnsetDetector od(sr, onsetN, hop);
-  YinPitch yin(sr, yinW, 70.f, 1400.f, 0.15f);
-  const float kMatch = 0.6f;  // decision threshold (midpoint of synthetic right/wrong margins)
+  YinPitch yin(sr, yinW);
+  const float kMatch = kChordMatchThreshold;
   ChordVerifier cv(sr, (int)(0.8 * sr));
   cv.usePenalty = !noPenalty;
+  if (!noDiff) cv.preSubtract = 0.8f;  // CLI keeps the onset-local difference on unless --no-diff (library default: off)
   std::vector<long long> onsets; long long pos;
   for (size_t i = 0; i + hop <= a.mono.size(); i += hop) if (od.processHop(&a.mono[i], pos)) onsets.push_back(pos);
   if (!json) std::printf("file=%s rate=%d dur=%.2fs onsets=%zu\n", argv[1], sr, a.mono.size() / (double)sr, onsets.size());
@@ -51,15 +52,8 @@ int main(int argc, char** argv) {
   for (size_t k = 0; k < onsets.size(); ++k) {
     long long s0 = onsets[k], s1 = k + 1 < onsets.size() ? onsets[k + 1] : (long long)a.mono.size();
     // pitch: median of 3 YIN frames after the attack transient (~40 ms in)
-    std::vector<float> f0s; float conf = 0;
-    for (int j = 0; j < 3; ++j) {
-      long long st = s0 + (long long)(0.04 * sr) + j * yinW / 2;
-      if (st + yinW > s1 || st + yinW > (long long)a.mono.size()) break;
-      PitchResult p = yin.process(&a.mono[st]);
-      if (p.voiced) { f0s.push_back(p.freqHz); conf += p.confidence; }
-    }
-    float f0 = 0;
-    if (!f0s.empty()) { std::sort(f0s.begin(), f0s.end()); f0 = f0s[f0s.size() / 2]; conf /= f0s.size(); }
+    float conf = 0;
+    float f0 = pitchAfterOnset(yin, a.mono.data(), (long long)a.mono.size(), s0, s1, sr, &conf);
     NoteName nn = freqToNote(f0);
     double t = s0 / (double)sr;
     std::string chordStr;

@@ -40,7 +40,7 @@ template <class F> static void bench(const char* name, int iters, F&& f, double 
 int main(int argc, char** argv) {
   const int sr = argc > 1 ? std::atoi(argv[1]) : 48000;
   auto pow2 = [](double v) { int n = 1; while (n < v) n <<= 1; return n; };
-  const int onsetN = pow2(sr * 0.023), hop = onsetN / 4, yinW = pow2(sr * 0.045), chordLen = (int)(0.74 * sr);
+  const int onsetN = std::max(1024, pow2(sr * 0.023)), hop = onsetN / 4, yinW = pow2(sr * 0.045), chordLen = (int)(0.74 * sr);
   std::vector<float> x(sr * 2);
   std::mt19937 rng(1); std::normal_distribution<float> nd(0, 0.01f);
   for (size_t i = 0; i < x.size(); ++i) x[i] = 0.3f * std::sin(2 * 3.14159f * 110.f * i / sr) + nd(rng);
