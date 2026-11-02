@@ -97,6 +97,7 @@ struct ChordMatch {
   float missSalDb = 99.f;   // weakest expected pitch class (99 = no decidable expected note)
   float extraSalDb = -99.f; // strongest non-expected pitch class at/above the bass (-99 = none decidable)
   int weakestPc = -1, extraPc = -1;
+  float pcSalDb[12] = {};    // strict extra-note test: best salience per non-expected pitch class (-99 = none)
   float snrDb = 0;          // segment spectral SNR: strongest peak (70-2000 Hz) over median floor
   float generalScore = 0;   // score before the strict factor
   float threshold = 0;      // decision threshold for this segment (noise-adaptive if enabled)

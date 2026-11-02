@@ -325,11 +325,13 @@ ChordMatch ChordVerifier::verify(const float* x, int len, const int* exp, int nE
     }
     // non-expected pitch classes (neighbour candidates) between the bass note and E6
     float extra = -99.f; int extraPc = -1;
+    for (int pc = 0; pc < 12; ++pc) r.pcSalDb[pc] = -99.f;
     for (int pc = 0; pc < 12; ++pc) {
       if (inSet[pc] || (haveNeighbours_ && !neighbourPc_[pc])) continue;
       for (int m = lowest + 1; m <= strictMaxMidi; ++m) {
         if (m % 12 != pc) continue;
         float s = salience(diff_, m, exp, nExp, extraCombine);
+        if (s == s && s > r.pcSalDb[pc]) r.pcSalDb[pc] = s;
         if (s == s && s > extra) { extra = s; extraPc = pc; }
       }
     }
