@@ -1,0 +1,522 @@
+[
+ {
+  "snr_max": 20,
+  "mc": 9,
+  "ec": 24,
+  "base": 0.26,
+  "tpr_by_cond": [
+   85.0,
+   87.2,
+   86.4
+  ],
+  "fpr": 10.1,
+  "fpr_one_note": 28.3
+ },
+ {
+  "snr_max": 20,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.37,
+  "tpr_by_cond": [
+   85.5,
+   87.8,
+   86.6
+  ],
+  "fpr": 9.6,
+  "fpr_one_note": 30.1
+ },
+ {
+  "snr_max": 25,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.35,
+  "tpr_by_cond": [
+   86.1,
+   87.4,
+   85.5
+  ],
+  "fpr": 10.6,
+  "fpr_one_note": 29.3
+ },
+ {
+  "snr_max": 25,
+  "mc": 6,
+  "ec": 24,
+  "base": 0.33,
+  "tpr_by_cond": [
+   85.3,
+   88.0,
+   87.3
+  ],
+  "fpr": 10.6,
+  "fpr_one_note": 29.4
+ },
+ {
+  "snr_max": 20,
+  "mc": 9,
+  "ec": 27,
+  "base": 0.27,
+  "tpr_by_cond": [
+   86.0,
+   87.2,
+   86.1
+  ],
+  "fpr": 10.9,
+  "fpr_one_note": 29.5
+ },
+ {
+  "snr_max": 30,
+  "mc": 3,
+  "ec": 24,
+  "base": 0.4,
+  "tpr_by_cond": [
+   85.0,
+   88.1,
+   88.3
+  ],
+  "fpr": 10.3,
+  "fpr_one_note": 30.3
+ },
+ {
+  "snr_max": 30,
+  "mc": 6,
+  "ec": 24,
+  "base": 0.32,
+  "tpr_by_cond": [
+   85.4,
+   86.9,
+   86.7
+  ],
+  "fpr": 11.3,
+  "fpr_one_note": 29.4
+ },
+ {
+  "snr_max": 30,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.34,
+  "tpr_by_cond": [
+   85.9,
+   86.5,
+   85.2
+  ],
+  "fpr": 11.2,
+  "fpr_one_note": 29.5
+ },
+ {
+  "snr_max": 30,
+  "mc": 6,
+  "ec": 21,
+  "base": 0.29,
+  "tpr_by_cond": [
+   85.1,
+   87.8,
+   88.8
+  ],
+  "fpr": 11.5,
+  "fpr_one_note": 29.7
+ },
+ {
+  "snr_max": 25,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.34,
+  "tpr_by_cond": [
+   86.7,
+   88.2,
+   87.1
+  ],
+  "fpr": 11.5,
+  "fpr_one_note": 30.9
+ },
+ {
+  "snr_max": 20,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.36,
+  "tpr_by_cond": [
+   86.2,
+   88.7,
+   88.0
+  ],
+  "fpr": 10.6,
+  "fpr_one_note": 31.9
+ },
+ {
+  "snr_max": 25,
+  "mc": 6,
+  "ec": 24,
+  "base": 0.32,
+  "tpr_by_cond": [
+   86.1,
+   88.6,
+   88.5
+  ],
+  "fpr": 11.7,
+  "fpr_one_note": 30.9
+ },
+ {
+  "snr_max": 20,
+  "mc": 6,
+  "ec": 24,
+  "base": 0.34,
+  "tpr_by_cond": [
+   85.5,
+   89.3,
+   89.5
+  ],
+  "fpr": 10.6,
+  "fpr_one_note": 32.1
+ },
+ {
+  "snr_max": 30,
+  "mc": 6,
+  "ec": 24,
+  "base": 0.31,
+  "tpr_by_cond": [
+   86.2,
+   87.9,
+   87.9
+  ],
+  "fpr": 12.3,
+  "fpr_one_note": 30.8
+ },
+ {
+  "snr_max": 20,
+  "mc": 9,
+  "ec": 27,
+  "base": 0.26,
+  "tpr_by_cond": [
+   86.7,
+   88.0,
+   87.0
+  ],
+  "fpr": 11.9,
+  "fpr_one_note": 31.3
+ },
+ {
+  "snr_max": 30,
+  "mc": 3,
+  "ec": 24,
+  "base": 0.39,
+  "tpr_by_cond": [
+   85.8,
+   88.8,
+   89.8
+  ],
+  "fpr": 11.2,
+  "fpr_one_note": 32.0
+ },
+ {
+  "snr_max": 30,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.33,
+  "tpr_by_cond": [
+   86.6,
+   87.3,
+   86.5
+  ],
+  "fpr": 12.3,
+  "fpr_one_note": 30.9
+ },
+ {
+  "snr_max": 25,
+  "mc": 3,
+  "ec": 24,
+  "base": 0.4,
+  "tpr_by_cond": [
+   85.4,
+   89.4,
+   89.8
+  ],
+  "fpr": 10.8,
+  "fpr_one_note": 32.8
+ },
+ {
+  "snr_max": 25,
+  "mc": 6,
+  "ec": 21,
+  "base": 0.29,
+  "tpr_by_cond": [
+   85.6,
+   89.3,
+   90.5
+  ],
+  "fpr": 11.9,
+  "fpr_one_note": 31.7
+ },
+ {
+  "snr_max": 30,
+  "mc": 6,
+  "ec": 21,
+  "base": 0.28,
+  "tpr_by_cond": [
+   86.0,
+   88.6,
+   89.9
+  ],
+  "fpr": 12.5,
+  "fpr_one_note": 31.3
+ },
+ {
+  "snr_max": 99,
+  "mc": 3,
+  "ec": 24,
+  "base": 0.38,
+  "tpr_by_cond": [
+   85.0,
+   88.1,
+   90.5
+  ],
+  "fpr": 12.0,
+  "fpr_one_note": 32.8
+ },
+ {
+  "snr_max": 99,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.32,
+  "tpr_by_cond": [
+   85.4,
+   86.0,
+   86.6
+  ],
+  "fpr": 13.1,
+  "fpr_one_note": 31.9
+ },
+ {
+  "snr_max": 25,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.33,
+  "tpr_by_cond": [
+   87.5,
+   89.0,
+   88.3
+  ],
+  "fpr": 12.7,
+  "fpr_one_note": 32.4
+ },
+ {
+  "snr_max": 99,
+  "mc": 6,
+  "ec": 24,
+  "base": 0.3,
+  "tpr_by_cond": [
+   85.0,
+   86.7,
+   88.1
+  ],
+  "fpr": 13.2,
+  "fpr_one_note": 31.9
+ },
+ {
+  "snr_max": 25,
+  "mc": 6,
+  "ec": 24,
+  "base": 0.31,
+  "tpr_by_cond": [
+   86.9,
+   89.4,
+   89.7
+  ],
+  "fpr": 12.7,
+  "fpr_one_note": 32.5
+ },
+ {
+  "snr_max": 99,
+  "mc": 3,
+  "ec": 27,
+  "base": 0.4,
+  "tpr_by_cond": [
+   85.6,
+   87.7,
+   89.1
+  ],
+  "fpr": 12.2,
+  "fpr_one_note": 33.0
+ },
+ {
+  "snr_max": 20,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.35,
+  "tpr_by_cond": [
+   86.9,
+   89.7,
+   89.1
+  ],
+  "fpr": 11.6,
+  "fpr_one_note": 33.7
+ },
+ {
+  "snr_max": 30,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.32,
+  "tpr_by_cond": [
+   87.4,
+   87.9,
+   87.4
+  ],
+  "fpr": 13.3,
+  "fpr_one_note": 32.3
+ },
+ {
+  "snr_max": 20,
+  "mc": 6,
+  "ec": 24,
+  "base": 0.33,
+  "tpr_by_cond": [
+   86.2,
+   90.3,
+   90.7
+  ],
+  "fpr": 11.7,
+  "fpr_one_note": 34.0
+ },
+ {
+  "snr_max": 30,
+  "mc": 6,
+  "ec": 24,
+  "base": 0.3,
+  "tpr_by_cond": [
+   86.8,
+   88.6,
+   89.0
+  ],
+  "fpr": 13.3,
+  "fpr_one_note": 32.4
+ },
+ {
+  "snr_max": 30,
+  "mc": 3,
+  "ec": 24,
+  "base": 0.38,
+  "tpr_by_cond": [
+   86.6,
+   89.7,
+   91.1
+  ],
+  "fpr": 12.2,
+  "fpr_one_note": 33.6
+ },
+ {
+  "snr_max": 30,
+  "mc": 3,
+  "ec": 21,
+  "base": 0.35,
+  "tpr_by_cond": [
+   85.2,
+   90.0,
+   92.3
+  ],
+  "fpr": 12.3,
+  "fpr_one_note": 33.7
+ },
+ {
+  "snr_max": 30,
+  "mc": 3,
+  "ec": 27,
+  "base": 0.4,
+  "tpr_by_cond": [
+   87.4,
+   89.4,
+   89.8
+  ],
+  "fpr": 12.3,
+  "fpr_one_note": 33.7
+ },
+ {
+  "snr_max": 25,
+  "mc": 3,
+  "ec": 24,
+  "base": 0.39,
+  "tpr_by_cond": [
+   86.1,
+   90.2,
+   91.3
+  ],
+  "fpr": 11.8,
+  "fpr_one_note": 34.6
+ },
+ {
+  "snr_max": 25,
+  "mc": 6,
+  "ec": 21,
+  "base": 0.28,
+  "tpr_by_cond": [
+   86.4,
+   90.0,
+   91.5
+  ],
+  "fpr": 13.0,
+  "fpr_one_note": 33.5
+ },
+ {
+  "snr_max": 30,
+  "mc": 6,
+  "ec": 21,
+  "base": 0.27,
+  "tpr_by_cond": [
+   86.4,
+   89.3,
+   91.2
+  ],
+  "fpr": 13.6,
+  "fpr_one_note": 32.9
+ },
+ {
+  "snr_max": 20,
+  "mc": 6,
+  "ec": 21,
+  "base": 0.3,
+  "tpr_by_cond": [
+   85.1,
+   90.5,
+   92.1
+  ],
+  "fpr": 12.0,
+  "fpr_one_note": 34.9
+ },
+ {
+  "snr_max": 99,
+  "mc": 3,
+  "ec": 24,
+  "base": 0.37,
+  "tpr_by_cond": [
+   85.7,
+   88.8,
+   91.8
+  ],
+  "fpr": 13.1,
+  "fpr_one_note": 34.3
+ },
+ {
+  "snr_max": 99,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.31,
+  "tpr_by_cond": [
+   85.9,
+   86.8,
+   87.6
+  ],
+  "fpr": 14.2,
+  "fpr_one_note": 33.3
+ },
+ {
+  "snr_max": 25,
+  "mc": 6,
+  "ec": 27,
+  "base": 0.32,
+  "tpr_by_cond": [
+   88.2,
+   89.6,
+   89.3
+  ],
+  "fpr": 13.7,
+  "fpr_one_note": 34.0
+ }
+]

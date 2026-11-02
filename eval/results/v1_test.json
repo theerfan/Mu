@@ -1,0 +1,1817 @@
+{
+ "split": "test",
+ "params": "--strict 0 --thr-base 0.58",
+ "thr": null,
+ "results": {
+  "clean": {
+   "pitch": {
+    "all": {
+     "n": 3475,
+     "acc50": 96.5,
+     "octave_err": 0.8,
+     "octave_up": 0.7,
+     "twelfth_err": 0.3,
+     "unvoiced": 0.0,
+     "median_abs_cents": 3.1
+    },
+    "by_string": {
+     "6 (E)": {
+      "n": 11,
+      "acc50": 100.0,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 3.1
+     },
+     "5 (A)": {
+      "n": 156,
+      "acc50": 96.8,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 2.9
+     },
+     "4 (D)": {
+      "n": 613,
+      "acc50": 98.0,
+      "octave_err": 0.3,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 3.1
+     },
+     "3 (G)": {
+      "n": 1016,
+      "acc50": 97.3,
+      "octave_err": 0.1,
+      "octave_up": 0.0,
+      "twelfth_err": 1.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 2.3
+     },
+     "2 (B)": {
+      "n": 976,
+      "acc50": 96.0,
+      "octave_err": 0.2,
+      "octave_up": 0.0,
+      "twelfth_err": 0.2,
+      "unvoiced": 0.0,
+      "median_abs_cents": 4.3
+     },
+     "1 (e)": {
+      "n": 703,
+      "acc50": 94.6,
+      "octave_err": 3.4,
+      "octave_up": 3.3,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 2.9
+     }
+    },
+    "by_register": {
+     "<E3 (52)": {
+      "n": 82,
+      "acc50": 97.6,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 3.9
+     },
+     "E3-D#4": {
+      "n": 1560,
+      "acc50": 97.5,
+      "octave_err": 0.1,
+      "octave_up": 0.0,
+      "twelfth_err": 0.6,
+      "unvoiced": 0.0,
+      "median_abs_cents": 2.5
+     },
+     "E4-D#5": {
+      "n": 1790,
+      "acc50": 95.6,
+      "octave_err": 1.6,
+      "octave_up": 1.3,
+      "twelfth_err": 0.1,
+      "unvoiced": 0.0,
+      "median_abs_cents": 3.5
+     },
+     ">=E5": {
+      "n": 43,
+      "acc50": 97.7,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 2.7
+     }
+    }
+   },
+   "onset": {
+    "all": {
+     "P": 62.1,
+     "R": 87.7,
+     "F": 72.7,
+     "n_ref": 10830,
+     "strum_fp_pct": 8.6,
+     "mean_err_ms": -5.0
+    },
+    "comp": {
+     "P": 69.6,
+     "R": 84.9,
+     "F": 76.5,
+     "n_ref": 6202,
+     "strum_fp_pct": 7.5,
+     "mean_err_ms": -2.6
+    },
+    "solo": {
+     "P": 54.8,
+     "R": 91.4,
+     "F": 68.5,
+     "n_ref": 4628,
+     "strum_fp_pct": 9.7,
+     "mean_err_ms": -7.9
+    }
+   },
+   "chord": {
+    "n": {
+     "pos": 2458,
+     "leadsheet": 2458,
+     "neg_other": 2458,
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
+    },
+    "percentiles_10_25_50_75_90": {
+     "pos": [
+      0.527,
+      0.662,
+      0.871,
+      0.937,
+      0.962
+     ],
+     "leadsheet": [
+      0.265,
+      0.445,
+      0.621,
+      0.868,
+      0.947
+     ],
+     "neg_other": [
+      0.0,
+      0.064,
+      0.135,
+      0.278,
+      0.43
+     ],
+     "neg_shared": [
+      0.225,
+      0.299,
+      0.409,
+      0.545,
+      0.655
+     ],
+     "neg_near": [
+      0.304,
+      0.407,
+      0.541,
+      0.66,
+      0.792
+     ],
+     "neg_edit": [
+      0.341,
+      0.481,
+      0.614,
+      0.714,
+      0.843
+     ]
+    },
+    "roc_pos_vs_all_neg": {
+     "auc": 0.946,
+     "best_thr": 0.577,
+     "tpr": 86.4,
+     "fpr": 11.1
+    },
+    "roc_pos_vs_shared": {
+     "auc": 0.912,
+     "best_thr": 0.604,
+     "tpr": 83.0,
+     "fpr": 15.4
+    },
+    "roc_pos_vs_one_note": {
+     "auc": 0.798,
+     "best_thr": 0.763,
+     "tpr": 65.9,
+     "fpr": 16.6
+    },
+    "roc_leadsheet_vs_all_neg": {
+     "auc": 0.826,
+     "best_thr": 0.513,
+     "tpr": 67.6,
+     "fpr": 17.8
+    },
+    "rates": {
+     "tpr": 85.8,
+     "fpr_all": 10.8,
+     "fpr_shared": 19.7,
+     "fpr_near": 41.4,
+     "fpr_edit": 57.4,
+     "fpr_one_note": 52.8,
+     "fpr_add": 76.6,
+     "fpr_drop": 70.7,
+     "fpr_move": 32.0,
+     "leadsheet_tpr": 58.1
+    },
+    "top_shared_confusions": [
+     {
+      "pair": "F:maj played, F:maj expected",
+      "false_match": 33,
+      "of": 38
+     },
+     {
+      "pair": "D#:maj7 played, D#:maj expected",
+      "false_match": 24,
+      "of": 35
+     },
+     {
+      "pair": "D#:maj played, D#:maj7 expected",
+      "false_match": 23,
+      "of": 39
+     },
+     {
+      "pair": "C:maj played, C:maj7 expected",
+      "false_match": 16,
+      "of": 19
+     },
+     {
+      "pair": "C#:maj played, C#:maj expected",
+      "false_match": 16,
+      "of": 26
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 15,
+      "of": 20
+     },
+     {
+      "pair": "E:maj played, E:maj expected",
+      "false_match": 15,
+      "of": 16
+     },
+     {
+      "pair": "A#:maj played, A#:7 expected",
+      "false_match": 14,
+      "of": 16
+     },
+     {
+      "pair": "D:maj played, D:maj expected",
+      "false_match": 13,
+      "of": 24
+     },
+     {
+      "pair": "C#:maj7 played, C#:maj expected",
+      "false_match": 12,
+      "of": 22
+     }
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 88,
+      "of": 357,
+      "pct": 24.6
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 51,
+      "of": 285,
+      "pct": 17.9
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 38,
+      "of": 236,
+      "pct": 16.1
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 34,
+      "of": 228,
+      "pct": 14.9
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 41,
+      "of": 187,
+      "pct": 21.9
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 52,
+      "of": 180,
+      "pct": 28.9
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 106,
+      "of": 180,
+      "pct": 58.9
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 34,
+      "of": 167,
+      "pct": 20.4
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 87,
+      "of": 162,
+      "pct": 53.7
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 112,
+      "of": 153,
+      "pct": 73.2
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 24,
+      "of": 138,
+      "pct": 17.4
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 49,
+      "of": 136,
+      "pct": 36.0
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "23/39",
+     "D#:maj7 played, D#:maj expected": "24/35",
+     "C:maj played, C:maj7 expected": "16/19",
+     "C:maj7 played, C:maj expected": "12/26",
+     "A:maj played, A:min expected": "4/12",
+     "A:min played, A:maj expected": "2/4",
+     "F:maj played, F:min expected": "4/5",
+     "F:min played, F:maj expected": "2/3"
+    }
+   }
+  },
+  "pink20": {
+   "pitch": {
+    "all": {
+     "n": 3475,
+     "acc50": 95.9,
+     "octave_err": 1.2,
+     "octave_up": 0.7,
+     "twelfth_err": 0.3,
+     "unvoiced": 0.2,
+     "median_abs_cents": 3.2
+    },
+    "by_string": {
+     "6 (E)": {
+      "n": 11,
+      "acc50": 100.0,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 3.3
+     },
+     "5 (A)": {
+      "n": 156,
+      "acc50": 96.8,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 3.0
+     },
+     "4 (D)": {
+      "n": 613,
+      "acc50": 97.7,
+      "octave_err": 0.7,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.3,
+      "median_abs_cents": 3.4
+     },
+     "3 (G)": {
+      "n": 1016,
+      "acc50": 97.2,
+      "octave_err": 0.1,
+      "octave_up": 0.0,
+      "twelfth_err": 1.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 2.4
+     },
+     "2 (B)": {
+      "n": 976,
+      "acc50": 95.2,
+      "octave_err": 0.8,
+      "octave_up": 0.0,
+      "twelfth_err": 0.2,
+      "unvoiced": 0.2,
+      "median_abs_cents": 4.5
+     },
+     "1 (e)": {
+      "n": 703,
+      "acc50": 93.3,
+      "octave_err": 4.0,
+      "octave_up": 3.3,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.3,
+      "median_abs_cents": 3.0
+     }
+    },
+    "by_register": {
+     "<E3 (52)": {
+      "n": 82,
+      "acc50": 97.6,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 4.4
+     },
+     "E3-D#4": {
+      "n": 1560,
+      "acc50": 97.2,
+      "octave_err": 0.2,
+      "octave_up": 0.0,
+      "twelfth_err": 0.6,
+      "unvoiced": 0.1,
+      "median_abs_cents": 2.7
+     },
+     "E4-D#5": {
+      "n": 1790,
+      "acc50": 94.7,
+      "octave_err": 2.1,
+      "octave_up": 1.3,
+      "twelfth_err": 0.1,
+      "unvoiced": 0.2,
+      "median_abs_cents": 3.6
+     },
+     ">=E5": {
+      "n": 43,
+      "acc50": 97.7,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 3.0
+     }
+    }
+   },
+   "onset": {
+    "all": {
+     "P": 79.4,
+     "R": 81.3,
+     "F": 80.3,
+     "n_ref": 10830,
+     "strum_fp_pct": 5.5,
+     "mean_err_ms": 1.8
+    },
+    "comp": {
+     "P": 79.8,
+     "R": 74.9,
+     "F": 77.3,
+     "n_ref": 6202,
+     "strum_fp_pct": 5.0,
+     "mean_err_ms": 3.7
+    },
+    "solo": {
+     "P": 78.9,
+     "R": 89.9,
+     "F": 84.0,
+     "n_ref": 4628,
+     "strum_fp_pct": 6.0,
+     "mean_err_ms": -0.2
+    }
+   },
+   "chord": {
+    "n": {
+     "pos": 2458,
+     "leadsheet": 2458,
+     "neg_other": 2458,
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
+    },
+    "percentiles_10_25_50_75_90": {
+     "pos": [
+      0.572,
+      0.669,
+      0.844,
+      0.927,
+      0.955
+     ],
+     "leadsheet": [
+      0.353,
+      0.503,
+      0.63,
+      0.846,
+      0.937
+     ],
+     "neg_other": [
+      0.0,
+      0.082,
+      0.217,
+      0.421,
+      0.523
+     ],
+     "neg_shared": [
+      0.262,
+      0.347,
+      0.489,
+      0.597,
+      0.692
+     ],
+     "neg_near": [
+      0.353,
+      0.462,
+      0.574,
+      0.676,
+      0.79
+     ],
+     "neg_edit": [
+      0.403,
+      0.533,
+      0.648,
+      0.742,
+      0.855
+     ]
+    },
+    "roc_pos_vs_all_neg": {
+     "auc": 0.939,
+     "best_thr": 0.594,
+     "tpr": 87.6,
+     "fpr": 14.3
+    },
+    "roc_pos_vs_shared": {
+     "auc": 0.901,
+     "best_thr": 0.661,
+     "tpr": 76.2,
+     "fpr": 13.5
+    },
+    "roc_pos_vs_one_note": {
+     "auc": 0.78,
+     "best_thr": 0.759,
+     "tpr": 63.8,
+     "fpr": 19.7
+    },
+    "roc_leadsheet_vs_all_neg": {
+     "auc": 0.809,
+     "best_thr": 0.509,
+     "tpr": 74.2,
+     "fpr": 28.5
+    },
+    "rates": {
+     "tpr": 89.3,
+     "fpr_all": 16.5,
+     "fpr_shared": 28.6,
+     "fpr_near": 48.4,
+     "fpr_edit": 65.6,
+     "fpr_one_note": 60.6,
+     "fpr_add": 84.6,
+     "fpr_drop": 72.6,
+     "fpr_move": 43.4,
+     "leadsheet_tpr": 61.2
+    },
+    "top_shared_confusions": [
+     {
+      "pair": "F:maj played, F:maj expected",
+      "false_match": 32,
+      "of": 38
+     },
+     {
+      "pair": "D#:maj7 played, D#:maj expected",
+      "false_match": 27,
+      "of": 35
+     },
+     {
+      "pair": "D#:maj played, D#:maj7 expected",
+      "false_match": 25,
+      "of": 39
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 16,
+      "of": 20
+     },
+     {
+      "pair": "C:maj played, C:maj7 expected",
+      "false_match": 16,
+      "of": 19
+     },
+     {
+      "pair": "D:maj played, D:maj expected",
+      "false_match": 16,
+      "of": 24
+     },
+     {
+      "pair": "C:maj7 played, C:maj expected",
+      "false_match": 15,
+      "of": 26
+     },
+     {
+      "pair": "C#:maj played, C#:maj expected",
+      "false_match": 15,
+      "of": 26
+     },
+     {
+      "pair": "E:maj played, E:maj expected",
+      "false_match": 15,
+      "of": 16
+     },
+     {
+      "pair": "D:maj played, C:maj expected",
+      "false_match": 14,
+      "of": 20
+     }
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 122,
+      "of": 357,
+      "pct": 34.2
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 72,
+      "of": 285,
+      "pct": 25.3
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 57,
+      "of": 236,
+      "pct": 24.2
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 55,
+      "of": 228,
+      "pct": 24.1
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 67,
+      "of": 187,
+      "pct": 35.8
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 73,
+      "of": 180,
+      "pct": 40.6
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 114,
+      "of": 180,
+      "pct": 63.3
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 44,
+      "of": 167,
+      "pct": 26.3
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 94,
+      "of": 162,
+      "pct": 58.0
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 112,
+      "of": 153,
+      "pct": 73.2
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 29,
+      "of": 138,
+      "pct": 21.0
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 56,
+      "of": 136,
+      "pct": 41.2
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "25/39",
+     "D#:maj7 played, D#:maj expected": "27/35",
+     "C:maj played, C:maj7 expected": "16/19",
+     "C:maj7 played, C:maj expected": "15/26",
+     "A:maj played, A:min expected": "6/12",
+     "A:min played, A:maj expected": "1/4",
+     "F:maj played, F:min expected": "5/5",
+     "F:min played, F:maj expected": "1/3"
+    }
+   }
+  },
+  "pink10": {
+   "pitch": {
+    "all": {
+     "n": 3475,
+     "acc50": 92.5,
+     "octave_err": 2.2,
+     "octave_up": 0.6,
+     "twelfth_err": 0.9,
+     "unvoiced": 1.5,
+     "median_abs_cents": 3.8
+    },
+    "by_string": {
+     "6 (E)": {
+      "n": 11,
+      "acc50": 100.0,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 2.9
+     },
+     "5 (A)": {
+      "n": 156,
+      "acc50": 93.6,
+      "octave_err": 1.9,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.6,
+      "median_abs_cents": 4.3
+     },
+     "4 (D)": {
+      "n": 613,
+      "acc50": 96.1,
+      "octave_err": 0.7,
+      "octave_up": 0.0,
+      "twelfth_err": 0.2,
+      "unvoiced": 1.0,
+      "median_abs_cents": 4.1
+     },
+     "3 (G)": {
+      "n": 1016,
+      "acc50": 92.8,
+      "octave_err": 1.8,
+      "octave_up": 0.0,
+      "twelfth_err": 2.2,
+      "unvoiced": 1.1,
+      "median_abs_cents": 3.2
+     },
+     "2 (B)": {
+      "n": 976,
+      "acc50": 91.4,
+      "octave_err": 2.2,
+      "octave_up": 0.0,
+      "twelfth_err": 0.7,
+      "unvoiced": 2.0,
+      "median_abs_cents": 5.1
+     },
+     "1 (e)": {
+      "n": 703,
+      "acc50": 90.2,
+      "octave_err": 4.6,
+      "octave_up": 3.1,
+      "twelfth_err": 0.4,
+      "unvoiced": 2.0,
+      "median_abs_cents": 3.1
+     }
+    },
+    "by_register": {
+     "<E3 (52)": {
+      "n": 82,
+      "acc50": 93.9,
+      "octave_err": 1.2,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 2.4,
+      "median_abs_cents": 6.2
+     },
+     "E3-D#4": {
+      "n": 1560,
+      "acc50": 94.3,
+      "octave_err": 1.4,
+      "octave_up": 0.0,
+      "twelfth_err": 1.2,
+      "unvoiced": 0.8,
+      "median_abs_cents": 3.4
+     },
+     "E4-D#5": {
+      "n": 1790,
+      "acc50": 91.0,
+      "octave_err": 3.0,
+      "octave_up": 1.2,
+      "twelfth_err": 0.8,
+      "unvoiced": 2.0,
+      "median_abs_cents": 4.1
+     },
+     ">=E5": {
+      "n": 43,
+      "acc50": 88.4,
+      "octave_err": 2.3,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 4.7,
+      "median_abs_cents": 2.9
+     }
+    }
+   },
+   "onset": {
+    "all": {
+     "P": 86.6,
+     "R": 66.4,
+     "F": 75.1,
+     "n_ref": 10830,
+     "strum_fp_pct": 3.5,
+     "mean_err_ms": 5.0
+    },
+    "comp": {
+     "P": 84.4,
+     "R": 54.4,
+     "F": 66.2,
+     "n_ref": 6202,
+     "strum_fp_pct": 3.9,
+     "mean_err_ms": 6.6
+    },
+    "solo": {
+     "P": 88.6,
+     "R": 82.3,
+     "F": 85.4,
+     "n_ref": 4628,
+     "strum_fp_pct": 3.3,
+     "mean_err_ms": 3.5
+    }
+   },
+   "chord": {
+    "n": {
+     "pos": 2458,
+     "leadsheet": 2458,
+     "neg_other": 2458,
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
+    },
+    "percentiles_10_25_50_75_90": {
+     "pos": [
+      0.562,
+      0.636,
+      0.744,
+      0.836,
+      0.89
+     ],
+     "leadsheet": [
+      0.454,
+      0.523,
+      0.621,
+      0.759,
+      0.845
+     ],
+     "neg_other": [
+      0.173,
+      0.343,
+      0.443,
+      0.517,
+      0.58
+     ],
+     "neg_shared": [
+      0.402,
+      0.5,
+      0.575,
+      0.655,
+      0.736
+     ],
+     "neg_near": [
+      0.449,
+      0.527,
+      0.605,
+      0.693,
+      0.78
+     ],
+     "neg_edit": [
+      0.504,
+      0.583,
+      0.674,
+      0.767,
+      0.842
+     ]
+    },
+    "roc_pos_vs_all_neg": {
+     "auc": 0.883,
+     "best_thr": 0.631,
+     "tpr": 76.6,
+     "fpr": 17.5
+    },
+    "roc_pos_vs_shared": {
+     "auc": 0.81,
+     "best_thr": 0.671,
+     "tpr": 68.5,
+     "fpr": 20.9
+    },
+    "roc_pos_vs_one_note": {
+     "auc": 0.668,
+     "best_thr": 0.708,
+     "tpr": 59.5,
+     "fpr": 34.7
+    },
+    "roc_leadsheet_vs_all_neg": {
+     "auc": 0.728,
+     "best_thr": 0.611,
+     "tpr": 52.5,
+     "fpr": 21.6
+    },
+    "rates": {
+     "tpr": 86.9,
+     "fpr_all": 29.0,
+     "fpr_shared": 47.9,
+     "fpr_near": 58.5,
+     "fpr_edit": 75.6,
+     "fpr_one_note": 70.7,
+     "fpr_add": 92.6,
+     "fpr_drop": 68.0,
+     "fpr_move": 62.1,
+     "leadsheet_tpr": 59.2
+    },
+    "top_shared_confusions": [
+     {
+      "pair": "D#:maj played, D#:maj7 expected",
+      "false_match": 36,
+      "of": 39
+     },
+     {
+      "pair": "F:maj played, F:maj expected",
+      "false_match": 31,
+      "of": 38
+     },
+     {
+      "pair": "F:maj played, D:min expected",
+      "false_match": 27,
+      "of": 59
+     },
+     {
+      "pair": "D#:maj7 played, D#:maj expected",
+      "false_match": 23,
+      "of": 35
+     },
+     {
+      "pair": "D:maj played, D:maj expected",
+      "false_match": 19,
+      "of": 24
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 15,
+      "of": 20
+     },
+     {
+      "pair": "A:maj played, A:sus2 expected",
+      "false_match": 15,
+      "of": 17
+     },
+     {
+      "pair": "A:maj played, A:7 expected",
+      "false_match": 15,
+      "of": 23
+     },
+     {
+      "pair": "C#:maj played, C#:maj7 expected",
+      "false_match": 15,
+      "of": 26
+     },
+     {
+      "pair": "C#:maj played, C#:maj expected",
+      "false_match": 15,
+      "of": 26
+     }
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 186,
+      "of": 357,
+      "pct": 52.1
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 133,
+      "of": 285,
+      "pct": 46.7
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 78,
+      "of": 236,
+      "pct": 33.1
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 119,
+      "of": 228,
+      "pct": 52.2
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 103,
+      "of": 187,
+      "pct": 55.1
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 103,
+      "of": 180,
+      "pct": 57.2
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 139,
+      "of": 180,
+      "pct": 77.2
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 59,
+      "of": 167,
+      "pct": 35.3
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 86,
+      "of": 162,
+      "pct": 53.1
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 116,
+      "of": 153,
+      "pct": 75.8
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 46,
+      "of": 138,
+      "pct": 33.3
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 59,
+      "of": 136,
+      "pct": 43.4
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "36/39",
+     "D#:maj7 played, D#:maj expected": "23/35",
+     "C:maj played, C:maj7 expected": "14/19",
+     "C:maj7 played, C:maj expected": "13/26",
+     "A:maj played, A:min expected": "5/12",
+     "A:min played, A:maj expected": "2/4",
+     "F:maj played, F:min expected": "4/5",
+     "F:min played, F:maj expected": "1/3"
+    }
+   }
+  },
+  "white15": {
+   "pitch": {
+    "all": {
+     "n": 3475,
+     "acc50": 94.9,
+     "octave_err": 1.5,
+     "octave_up": 0.7,
+     "twelfth_err": 0.4,
+     "unvoiced": 0.5,
+     "median_abs_cents": 3.6
+    },
+    "by_string": {
+     "6 (E)": {
+      "n": 11,
+      "acc50": 100.0,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 2.5
+     },
+     "5 (A)": {
+      "n": 156,
+      "acc50": 96.2,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 4.1
+     },
+     "4 (D)": {
+      "n": 613,
+      "acc50": 97.4,
+      "octave_err": 0.7,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.5,
+      "median_abs_cents": 4.0
+     },
+     "3 (G)": {
+      "n": 1016,
+      "acc50": 96.6,
+      "octave_err": 0.3,
+      "octave_up": 0.0,
+      "twelfth_err": 1.1,
+      "unvoiced": 0.2,
+      "median_abs_cents": 2.9
+     },
+     "2 (B)": {
+      "n": 976,
+      "acc50": 93.5,
+      "octave_err": 1.5,
+      "octave_up": 0.0,
+      "twelfth_err": 0.1,
+      "unvoiced": 0.8,
+      "median_abs_cents": 4.8
+     },
+     "1 (e)": {
+      "n": 703,
+      "acc50": 91.7,
+      "octave_err": 4.4,
+      "octave_up": 3.3,
+      "twelfth_err": 0.1,
+      "unvoiced": 0.9,
+      "median_abs_cents": 3.1
+     }
+    },
+    "by_register": {
+     "<E3 (52)": {
+      "n": 82,
+      "acc50": 96.3,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 6.3
+     },
+     "E3-D#4": {
+      "n": 1560,
+      "acc50": 97.0,
+      "octave_err": 0.3,
+      "octave_up": 0.0,
+      "twelfth_err": 0.6,
+      "unvoiced": 0.3,
+      "median_abs_cents": 3.2
+     },
+     "E4-D#5": {
+      "n": 1790,
+      "acc50": 93.1,
+      "octave_err": 2.7,
+      "octave_up": 1.3,
+      "twelfth_err": 0.2,
+      "unvoiced": 0.7,
+      "median_abs_cents": 3.9
+     },
+     ">=E5": {
+      "n": 43,
+      "acc50": 90.7,
+      "octave_err": 2.3,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 2.3,
+      "median_abs_cents": 3.0
+     }
+    }
+   },
+   "onset": {
+    "all": {
+     "P": 82.7,
+     "R": 77.5,
+     "F": 80.0,
+     "n_ref": 10830,
+     "strum_fp_pct": 4.1,
+     "mean_err_ms": 3.2
+    },
+    "comp": {
+     "P": 82.0,
+     "R": 69.4,
+     "F": 75.2,
+     "n_ref": 6202,
+     "strum_fp_pct": 4.0,
+     "mean_err_ms": 4.9
+    },
+    "solo": {
+     "P": 83.6,
+     "R": 88.3,
+     "F": 85.9,
+     "n_ref": 4628,
+     "strum_fp_pct": 4.2,
+     "mean_err_ms": 1.3
+    }
+   },
+   "chord": {
+    "n": {
+     "pos": 2458,
+     "leadsheet": 2458,
+     "neg_other": 2458,
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
+    },
+    "percentiles_10_25_50_75_90": {
+     "pos": [
+      0.564,
+      0.661,
+      0.844,
+      0.93,
+      0.959
+     ],
+     "leadsheet": [
+      0.336,
+      0.491,
+      0.62,
+      0.846,
+      0.942
+     ],
+     "neg_other": [
+      0.0,
+      0.076,
+      0.194,
+      0.406,
+      0.519
+     ],
+     "neg_shared": [
+      0.251,
+      0.335,
+      0.472,
+      0.587,
+      0.679
+     ],
+     "neg_near": [
+      0.34,
+      0.446,
+      0.564,
+      0.667,
+      0.781
+     ],
+     "neg_edit": [
+      0.39,
+      0.523,
+      0.639,
+      0.729,
+      0.845
+     ]
+    },
+    "roc_pos_vs_all_neg": {
+     "auc": 0.939,
+     "best_thr": 0.584,
+     "tpr": 88.1,
+     "fpr": 14.7
+    },
+    "roc_pos_vs_shared": {
+     "auc": 0.903,
+     "best_thr": 0.599,
+     "tpr": 85.5,
+     "fpr": 22.2
+    },
+    "roc_pos_vs_one_note": {
+     "auc": 0.782,
+     "best_thr": 0.774,
+     "tpr": 61.1,
+     "fpr": 16.2
+    },
+    "roc_leadsheet_vs_all_neg": {
+     "auc": 0.809,
+     "best_thr": 0.556,
+     "tpr": 64.6,
+     "fpr": 18.9
+    },
+    "rates": {
+     "tpr": 88.5,
+     "fpr_all": 15.3,
+     "fpr_shared": 26.2,
+     "fpr_near": 45.9,
+     "fpr_edit": 64.6,
+     "fpr_one_note": 59.2,
+     "fpr_add": 84.2,
+     "fpr_drop": 72.5,
+     "fpr_move": 41.4,
+     "leadsheet_tpr": 59.6
+    },
+    "top_shared_confusions": [
+     {
+      "pair": "F:maj played, F:maj expected",
+      "false_match": 31,
+      "of": 38
+     },
+     {
+      "pair": "D#:maj7 played, D#:maj expected",
+      "false_match": 24,
+      "of": 35
+     },
+     {
+      "pair": "D#:maj played, D#:maj7 expected",
+      "false_match": 23,
+      "of": 39
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 16,
+      "of": 20
+     },
+     {
+      "pair": "C:maj played, C:maj7 expected",
+      "false_match": 16,
+      "of": 19
+     },
+     {
+      "pair": "D:maj played, D:maj expected",
+      "false_match": 16,
+      "of": 24
+     },
+     {
+      "pair": "E:maj played, E:maj expected",
+      "false_match": 15,
+      "of": 16
+     },
+     {
+      "pair": "A#:maj played, A#:7 expected",
+      "false_match": 15,
+      "of": 16
+     },
+     {
+      "pair": "C#:maj played, C#:maj expected",
+      "false_match": 14,
+      "of": 26
+     },
+     {
+      "pair": "C:maj7 played, C:maj expected",
+      "false_match": 13,
+      "of": 26
+     }
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 104,
+      "of": 357,
+      "pct": 29.1
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 63,
+      "of": 285,
+      "pct": 22.1
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 48,
+      "of": 236,
+      "pct": 20.3
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 55,
+      "of": 228,
+      "pct": 24.1
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 60,
+      "of": 187,
+      "pct": 32.1
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 70,
+      "of": 180,
+      "pct": 38.9
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 109,
+      "of": 180,
+      "pct": 60.6
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 41,
+      "of": 167,
+      "pct": 24.6
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 88,
+      "of": 162,
+      "pct": 54.3
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 111,
+      "of": 153,
+      "pct": 72.5
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 32,
+      "of": 138,
+      "pct": 23.2
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 51,
+      "of": 136,
+      "pct": 37.5
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "23/39",
+     "D#:maj7 played, D#:maj expected": "24/35",
+     "C:maj played, C:maj7 expected": "16/19",
+     "C:maj7 played, C:maj expected": "13/26",
+     "A:maj played, A:min expected": "4/12",
+     "A:min played, A:maj expected": "2/4",
+     "F:maj played, F:min expected": "5/5",
+     "F:min played, F:maj expected": "1/3"
+    }
+   }
+  },
+  "phone": {
+   "pitch": {
+    "all": {
+     "n": 3475,
+     "acc50": 96.6,
+     "octave_err": 1.1,
+     "octave_up": 0.7,
+     "twelfth_err": 0.1,
+     "unvoiced": 0.2,
+     "median_abs_cents": 2.5
+    },
+    "by_string": {
+     "6 (E)": {
+      "n": 11,
+      "acc50": 100.0,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 2.7
+     },
+     "5 (A)": {
+      "n": 156,
+      "acc50": 96.8,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 3.3
+     },
+     "4 (D)": {
+      "n": 613,
+      "acc50": 98.0,
+      "octave_err": 0.3,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.2,
+      "median_abs_cents": 3.1
+     },
+     "3 (G)": {
+      "n": 1016,
+      "acc50": 97.7,
+      "octave_err": 0.3,
+      "octave_up": 0.0,
+      "twelfth_err": 0.2,
+      "unvoiced": 0.0,
+      "median_abs_cents": 1.8
+     },
+     "2 (B)": {
+      "n": 976,
+      "acc50": 96.0,
+      "octave_err": 0.8,
+      "octave_up": 0.0,
+      "twelfth_err": 0.2,
+      "unvoiced": 0.2,
+      "median_abs_cents": 3.7
+     },
+     "1 (e)": {
+      "n": 703,
+      "acc50": 94.3,
+      "octave_err": 3.6,
+      "octave_up": 3.3,
+      "twelfth_err": 0.1,
+      "unvoiced": 0.4,
+      "median_abs_cents": 1.4
+     }
+    },
+    "by_register": {
+     "<E3 (52)": {
+      "n": 82,
+      "acc50": 97.6,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 0.0,
+      "unvoiced": 0.0,
+      "median_abs_cents": 4.4
+     },
+     "E3-D#4": {
+      "n": 1560,
+      "acc50": 97.9,
+      "octave_err": 0.1,
+      "octave_up": 0.0,
+      "twelfth_err": 0.1,
+      "unvoiced": 0.1,
+      "median_abs_cents": 2.3
+     },
+     "E4-D#5": {
+      "n": 1790,
+      "acc50": 95.4,
+      "octave_err": 2.0,
+      "octave_up": 1.3,
+      "twelfth_err": 0.1,
+      "unvoiced": 0.3,
+      "median_abs_cents": 2.5
+     },
+     ">=E5": {
+      "n": 43,
+      "acc50": 95.3,
+      "octave_err": 0.0,
+      "octave_up": 0.0,
+      "twelfth_err": 2.3,
+      "unvoiced": 0.0,
+      "median_abs_cents": 1.7
+     }
+    }
+   },
+   "onset": {
+    "all": {
+     "P": 78.4,
+     "R": 82.0,
+     "F": 80.1,
+     "n_ref": 10830,
+     "strum_fp_pct": 5.9,
+     "mean_err_ms": 1.6
+    },
+    "comp": {
+     "P": 78.8,
+     "R": 76.0,
+     "F": 77.4,
+     "n_ref": 6202,
+     "strum_fp_pct": 5.4,
+     "mean_err_ms": 3.3
+    },
+    "solo": {
+     "P": 78.0,
+     "R": 90.0,
+     "F": 83.6,
+     "n_ref": 4628,
+     "strum_fp_pct": 6.4,
+     "mean_err_ms": -0.2
+    }
+   },
+   "chord": {
+    "n": {
+     "pos": 2458,
+     "leadsheet": 2458,
+     "neg_other": 2458,
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
+    },
+    "percentiles_10_25_50_75_90": {
+     "pos": [
+      0.585,
+      0.686,
+      0.853,
+      0.93,
+      0.957
+     ],
+     "leadsheet": [
+      0.375,
+      0.508,
+      0.633,
+      0.846,
+      0.936
+     ],
+     "neg_other": [
+      0.0,
+      0.091,
+      0.245,
+      0.438,
+      0.533
+     ],
+     "neg_shared": [
+      0.275,
+      0.368,
+      0.506,
+      0.611,
+      0.696
+     ],
+     "neg_near": [
+      0.373,
+      0.478,
+      0.588,
+      0.687,
+      0.796
+     ],
+     "neg_edit": [
+      0.431,
+      0.549,
+      0.657,
+      0.748,
+      0.858
+     ]
+    },
+    "roc_pos_vs_all_neg": {
+     "auc": 0.944,
+     "best_thr": 0.614,
+     "tpr": 86.2,
+     "fpr": 13.3
+    },
+    "roc_pos_vs_shared": {
+     "auc": 0.907,
+     "best_thr": 0.687,
+     "tpr": 74.9,
+     "fpr": 10.7
+    },
+    "roc_pos_vs_one_note": {
+     "auc": 0.786,
+     "best_thr": 0.783,
+     "tpr": 62.0,
+     "fpr": 17.6
+    },
+    "roc_leadsheet_vs_all_neg": {
+     "auc": 0.802,
+     "best_thr": 0.557,
+     "tpr": 66.4,
+     "fpr": 22.2
+    },
+    "rates": {
+     "tpr": 91.0,
+     "fpr_all": 18.6,
+     "fpr_shared": 32.3,
+     "fpr_near": 52.2,
+     "fpr_edit": 68.4,
+     "fpr_one_note": 63.7,
+     "fpr_add": 88.6,
+     "fpr_drop": 74.7,
+     "fpr_move": 45.4,
+     "leadsheet_tpr": 61.1
+    },
+    "top_shared_confusions": [
+     {
+      "pair": "F:maj played, F:maj expected",
+      "false_match": 34,
+      "of": 38
+     },
+     {
+      "pair": "D#:maj played, D#:maj7 expected",
+      "false_match": 27,
+      "of": 39
+     },
+     {
+      "pair": "D#:maj7 played, D#:maj expected",
+      "false_match": 25,
+      "of": 35
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 18,
+      "of": 20
+     },
+     {
+      "pair": "C:maj played, C:maj7 expected",
+      "false_match": 17,
+      "of": 19
+     },
+     {
+      "pair": "C:maj7 played, C:maj expected",
+      "false_match": 17,
+      "of": 26
+     },
+     {
+      "pair": "D:maj played, D:maj expected",
+      "false_match": 17,
+      "of": 24
+     },
+     {
+      "pair": "C#:maj played, C#:maj expected",
+      "false_match": 15,
+      "of": 26
+     },
+     {
+      "pair": "E:maj played, E:maj expected",
+      "false_match": 15,
+      "of": 16
+     },
+     {
+      "pair": "F#:maj played, F#:maj7 expected",
+      "false_match": 15,
+      "of": 16
+     }
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 124,
+      "of": 357,
+      "pct": 34.7
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 84,
+      "of": 285,
+      "pct": 29.5
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 60,
+      "of": 236,
+      "pct": 25.4
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 63,
+      "of": 228,
+      "pct": 27.6
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 63,
+      "of": 187,
+      "pct": 33.7
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 81,
+      "of": 180,
+      "pct": 45.0
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 126,
+      "of": 180,
+      "pct": 70.0
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 54,
+      "of": 167,
+      "pct": 32.3
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 97,
+      "of": 162,
+      "pct": 59.9
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 119,
+      "of": 153,
+      "pct": 77.8
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 40,
+      "of": 138,
+      "pct": 29.0
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 52,
+      "of": 136,
+      "pct": 38.2
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "27/39",
+     "D#:maj7 played, D#:maj expected": "25/35",
+     "C:maj played, C:maj7 expected": "17/19",
+     "C:maj7 played, C:maj expected": "17/26",
+     "A:maj played, A:min expected": "5/12",
+     "A:min played, A:maj expected": "2/4",
+     "F:maj played, F:min expected": "5/5",
+     "F:min played, F:maj expected": "1/3"
+    }
+   }
+  }
+ }
+}

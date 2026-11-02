@@ -108,16 +108,51 @@ def onset_metrics(rows):
 def pcs(m): return frozenset(x % 12 for x in m)
 
 
+def song_neighbours(file_evs, label):
+    """Song-aware neighbour pitch classes: every pitch class used by the file's chords, plus the usual one-note
+    variants of this chord's root (min/maj third, sus2/sus4, 6, 7, maj7)."""
+    nb = set()
+    for e in file_evs: nb |= pcs(e['midis'])
+    s = G.simplify(label) if label != 'N' else None
+    if s:
+        r = G.PC.index(s[0].replace('Db', 'C#').replace('Eb', 'D#').replace('Gb', 'F#').replace('Ab', 'G#').replace('Bb', 'A#'))
+        nb |= {(r + i) % 12 for i in (2, 3, 4, 5, 9, 10, 11)}
+    return sorted(60 + p for p in nb)
+
+
+def edit_negatives(e, rnd):
+    """Expected sets one note away from what was played: add a pitch class, drop one, or move one by 1-2 semitones."""
+    P = sorted(pcs(e['midis'])); m = e['midis']; out = []
+    lo, hi = min(m), max(m)
+    # add: a pitch class not played, placed in the middle of the voicing
+    add_pc = rnd.choice([p for p in range(12) if p not in P])
+    cand = [x for x in range(lo + 1, hi + 12) if x % 12 == add_pc]
+    out.append(('add', sorted(m + [cand[0]])))
+    # drop: remove every note of one pitch class (not the bass), if >= 3 classes remain
+    drops = [p for p in P if p != lo % 12]
+    if len(P) >= 4 and drops:
+        d = rnd.choice(drops); out.append(('drop', [x for x in m if x % 12 != d]))
+    # move: shift one pitch class (all octaves) by +-1 or +-2 semitones onto a class not already present
+    for _ in range(10):
+        p = rnd.choice(P); sh = rnd.choice([-2, -1, 1, 2])
+        if (p + sh) % 12 not in P:
+            out.append(('move', sorted(x + sh if x % 12 == p else x for x in m))); break
+    return out
+
+
 def chord_items(ids, seed=0):
     """Positives + negatives for every chord event in comp files of `ids`."""
-    rnd = random.Random(seed)
+    rnd = random.Random(seed); rnd2 = random.Random(seed + 1)
     evs = []
     for fid in ids:
         if not fid.endswith('comp'): continue
         d = G.load(fid)
+        fe = []
         for e in G.chord_events(d['notes']):
             lab = G.simplify(G.label_at(d['performed'], e['t'] + 0.1))
-            evs.append(dict(e, fid=fid, label=':'.join(lab) if lab else 'N', canon=G.canonical_voicing(G.label_at(d['instructed'], e['t'] + 0.1))))
+            fe.append(dict(e, fid=fid, label=':'.join(lab) if lab else 'N', canon=G.canonical_voicing(G.label_at(d['instructed'], e['t'] + 0.1))))
+        for e in fe: e['neigh'] = song_neighbours(fe, e['label'])
+        evs += fe
     items = []
     for e in evs:
         P = pcs(e['midis'])
@@ -131,17 +166,29 @@ def chord_items(ids, seed=0):
             Q = pcs(o['midis'])
             if len(P & Q) >= 2 and Q != P and o['label'] != e['label']:
                 items.append(dict(e, kind='neg_shared', exp=o['midis'], neg_label=o['label'])); break
+        # one-note-apart: a real chord whose pitch-class set differs by 1-2 classes (e.g. maj vs maj7, maj vs min)
+        for _ in range(200):
+            o = rnd2.choice(evs)
+            if 1 <= len(P ^ pcs(o['midis'])) <= 2:
+                items.append(dict(e, kind='neg_near', exp=o['midis'], neg_label=o['label'])); break
+        for kind, ex in edit_negatives(e, rnd2):
+            items.append(dict(e, kind='neg_edit', exp=ex, neg_label=kind))
     return items
 
 
 def chord_job(a):
-    fid, cond, params, its = a
-    lines = G.run_tool(G.audio_path(fid, cond), [f"C {i['t']:.4f} {i['end']:.4f} " + ' '.join(map(str, i['exp'])) for i in its], params)
+    fid, cond, params, its = a[:4]
+    song = len(a) > 4 and a[4]
+    cmd = lambda i: f"C {i['t']:.4f} {i['end']:.4f} " + ' '.join(map(str, i['exp'])) + (' | ' + ' '.join(map(str, i['neigh'])) if song else '')
+    lines = G.run_tool(G.audio_path(fid, cond), [cmd(i) for i in its], params)
     out = []
     for i, l in zip(its, lines):
         v = l.split()[1:]
-        out.append(dict(kind=i['kind'], label=i['label'], neg_label=i.get('neg_label'), fid=fid,
-                        score=float(v[0]), cos=float(v[1]), cov=float(v[2]), unexpl=float(v[3])))
+        r = dict(kind=i['kind'], label=i['label'], neg_label=i.get('neg_label'), fid=fid, cond=cond,
+                 score=float(v[0]), cos=float(v[1]), cov=float(v[2]), unexpl=float(v[3]))
+        if len(v) >= 10:
+            r.update(general=float(v[5]), miss=float(v[6]), extra=float(v[7]), snr=float(v[8]), match=int(v[9]))
+        out.append(r)
     return out
 
 
@@ -149,13 +196,13 @@ def roc(pos, neg):
     pos, neg = np.asarray(pos), np.asarray(neg)
     if not len(pos) or not len(neg): return {}
     # AUC = P(score_pos > score_neg) with ties counted half
-    allv = np.concatenate([pos, neg]); order = np.argsort(allv, kind='mergesort')
-    ranks = np.empty(len(allv)); ranks[order] = np.arange(1, len(allv) + 1)
-    for v in np.unique(allv):  # average ties
-        m = allv == v; ranks[m] = ranks[m].mean()
+    from scipy.stats import rankdata
+    ranks = rankdata(np.concatenate([pos, neg]))  # average ranks for ties
     auc = (ranks[:len(pos)].sum() - len(pos) * (len(pos) + 1) / 2) / (len(pos) * len(neg))
-    ths = np.unique(np.concatenate([pos, neg, [0.0, 1.0]]))
-    best = max(ths, key=lambda t: (np.mean(pos >= t) + np.mean(neg < t)) / 2)
+    ths = np.unique(np.round(np.concatenate([pos, neg, [0.0, 1.0]]), 3))
+    sp, sn = np.sort(pos), np.sort(neg)
+    bal = (1 - np.searchsorted(sp, ths, 'left') / len(sp) + np.searchsorted(sn, ths, 'left') / len(sn)) / 2
+    best = ths[int(np.argmax(bal))]
     return dict(auc=round(float(auc), 3), best_thr=round(float(best), 3),
                 tpr=round(100 * float(np.mean(pos >= best)), 1), fpr=round(100 * float(np.mean(neg >= best)), 1))
 
@@ -166,23 +213,41 @@ def at_thr(pos, neg, t):
 
 
 def chord_metrics(rows, thr=None):
+    """thr=None: use the verifier's own (possibly noise-adaptive) decision `match`; else score >= thr."""
     rows = [r for r in rows if r['score'] == r['score']]  # drop NaN (segment too short)
-    by = defaultdict(list)
-    for r in rows: by[r['kind']].append(r['score'])
+    for r in rows: r['hit'] = bool(r['match']) if thr is None and 'match' in r else r['score'] >= (thr if thr is not None else 0.58)
+    by = defaultdict(list); hit = defaultdict(list)
+    for r in rows:
+        k = r['kind'] if r['kind'] != 'neg_edit' else 'neg_edit_' + r['neg_label']
+        by[r['kind']].append(r['score']); hit[k].append(r['hit'])
+        if r['kind'] == 'neg_edit': hit['neg_edit'].append(r['hit'])
     q = lambda v: [round(float(x), 3) for x in np.percentile(v, [10, 25, 50, 75, 90])] if v else None
-    out = dict(n={k: len(v) for k, v in by.items()}, percentiles_10_25_50_75_90={k: q(v) for k, v in by.items()})
+    out = dict(n={k: len(v) for k, v in hit.items()}, percentiles_10_25_50_75_90={k: q(v) for k, v in by.items()})
     negs = by['neg_other'] + by['neg_shared']
-    out['roc_pos_vs_all_neg'] = roc(by['pos'], negs)
+    out['roc_pos_vs_all_neg'] = roc(by['pos'], negs)  # all = other + shared (same definition as v1)
     out['roc_pos_vs_shared'] = roc(by['pos'], by['neg_shared'])
+    out['roc_pos_vs_one_note'] = roc(by['pos'], by['neg_near'] + by['neg_edit'])
     out['roc_leadsheet_vs_all_neg'] = roc(by['leadsheet'], negs)
-    if thr is not None:
-        out['at_threshold'] = dict(pos_vs_neg=at_thr(by['pos'], negs, thr), pos_vs_shared=at_thr(by['pos'], by['neg_shared'], thr),
-                                   leadsheet_tpr=at_thr(by['leadsheet'], negs, thr)['tpr'])
-        conf = Counter(); tot = Counter()
-        for r in rows:
-            if r['kind'] == 'neg_shared':
-                k = f"{r['label']} played, {r['neg_label']} expected"; tot[k] += 1; conf[k] += r['score'] >= thr
-        out['top_shared_confusions'] = [dict(pair=k, false_match=conf[k], of=tot[k]) for k, _ in conf.most_common(8) if conf[k]]
+    pct = lambda v: round(100 * float(np.mean(v)), 1) if v else None
+    out['rates'] = dict(tpr=pct(hit['pos']), fpr_all=pct(hit['neg_other'] + hit['neg_shared']), fpr_shared=pct(hit['neg_shared']),
+                        fpr_near=pct(hit['neg_near']), fpr_edit=pct(hit['neg_edit']), fpr_one_note=pct(hit['neg_near'] + hit['neg_edit']),
+                        fpr_add=pct(hit['neg_edit_add']), fpr_drop=pct(hit['neg_edit_drop']), fpr_move=pct(hit['neg_edit_move']),
+                        leadsheet_tpr=pct(hit['leadsheet']))
+    conf = Counter(); tot = Counter(); qconf = Counter(); qtot = Counter()
+    for r in rows:
+        if r['kind'] in ('neg_shared', 'neg_near'):
+            k = f"{r['label']} played, {r['neg_label']} expected"; tot[k] += 1; conf[k] += r['hit']
+            a_, b_ = r['label'].split(':')[-1], (r['neg_label'] or 'N').split(':')[-1]
+            same_root = r['label'].split(':')[0] == (r['neg_label'] or '').split(':')[0]
+            qk = f"{a_} played, {b_} expected" + (' (same root)' if same_root else ''); qtot[qk] += 1; qconf[qk] += r['hit']
+    out['top_shared_confusions'] = [dict(pair=k, false_match=conf[k], of=tot[k]) for k, _ in conf.most_common(10) if conf[k]]
+    out['quality_confusions'] = [dict(pair=k, false_match=qconf[k], of=qtot[k], pct=round(100 * qconf[k] / qtot[k], 1))
+                                 for k, _ in sorted(qtot.items(), key=lambda kv: -kv[1])[:12]]
+    out['named_pairs'] = {}
+    for pa, pb in [('D#:maj', 'D#:maj7'), ('C:maj', 'C:maj7'), ('A:maj', 'A:min'), ('F:maj', 'F:min')]:
+        for x, y in [(pa, pb), (pb, pa)]:
+            k = f"{x} played, {y} expected"
+            if tot[k]: out['named_pairs'][k] = f"{conf[k]}/{tot[k]}"
     return out
 
 
@@ -202,7 +267,7 @@ def run(tasks, conds, ids, params, thr=None, workers=8):
                 for i in items: byf[i['fid']].append(i)
                 rows = [x for xs in pool.map(chord_job, [(f, cond, params, its) for f, its in byf.items()]) for x in xs]
                 r['chord'] = chord_metrics(rows, thr)
-            print(cond, json.dumps({k: (v.get('all') if k != 'chord' else v['roc_pos_vs_all_neg']) for k, v in r.items()}), file=sys.stderr)
+            print(cond, json.dumps({k: (v.get('all') if k != 'chord' else dict(v['roc_pos_vs_all_neg'], **v['rates'])) for k, v in r.items()}), file=sys.stderr)
     return res
 
 

@@ -1,6 +1,6 @@
 {
  "split": "test",
- "params": "--yin-thr 0.15 --yin-sub 0 --yin-vconf 0.7 --onset-mult 1.5 --onset-add 0.06 --flux-lag 1 --flux-maxfilt 0 --flux-maxhz 22050 --beta 0.8 --penalty 3 --peak-thr 0.05 --weight-exp 0.5 --cov-thr 0.25 --ignore-below-bass 0",
+ "params": "--yin-thr 0.15 --yin-sub 0 --yin-vconf 0.7 --yin-margin 1 --onset-mult 1.5 --onset-add 0.06 --flux-lag 1 --flux-maxfilt 0\n --flux-maxhz 22050 --beta 0.8 --penalty 3 --peak-thr 0.05 --weight-exp 0.5 --cov-thr 0.25 --ignore-below-bass 0 --strict 0",
  "thr": 0.6,
  "results": {
   "clean": {
@@ -140,7 +140,12 @@
      "pos": 2458,
      "leadsheet": 2458,
      "neg_other": 2458,
-     "neg_shared": 2452
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
     },
     "percentiles_10_25_50_75_90": {
      "pos": [
@@ -170,13 +175,27 @@
       0.0,
       0.0,
       0.071
+     ],
+     "neg_near": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.238
+     ],
+     "neg_edit": [
+      0.0,
+      0.0,
+      0.0,
+      0.205,
+      0.528
      ]
     },
     "roc_pos_vs_all_neg": {
      "auc": 0.733,
-     "best_thr": 0.033,
-     "tpr": 50.6,
-     "fpr": 6.2
+     "best_thr": 0.031,
+     "tpr": 50.7,
+     "fpr": 6.3
     },
     "roc_pos_vs_shared": {
      "auc": 0.713,
@@ -184,67 +203,166 @@
      "tpr": 47.5,
      "fpr": 8.3
     },
+    "roc_pos_vs_one_note": {
+     "auc": 0.626,
+     "best_thr": 0.263,
+     "tpr": 40.0,
+     "fpr": 18.2
+    },
     "roc_leadsheet_vs_all_neg": {
      "auc": 0.59,
      "best_thr": 0.003,
      "tpr": 24.6,
      "fpr": 7.4
     },
-    "at_threshold": {
-     "pos_vs_neg": {
-      "thr": 0.6,
-      "tpr": 23.8,
-      "fpr": 0.2
-     },
-     "pos_vs_shared": {
-      "thr": 0.6,
-      "tpr": 23.8,
-      "fpr": 0.5
-     },
+    "rates": {
+     "tpr": 23.8,
+     "fpr_all": 0.2,
+     "fpr_shared": 0.5,
+     "fpr_near": 2.3,
+     "fpr_edit": 7.4,
+     "fpr_one_note": 5.9,
+     "fpr_add": 14.2,
+     "fpr_drop": 5.1,
+     "fpr_move": 1.5,
      "leadsheet_tpr": 5.9
     },
     "top_shared_confusions": [
      {
+      "pair": "F:maj played, F:maj expected",
+      "false_match": 7,
+      "of": 38
+     },
+     {
+      "pair": "C#:maj played, C#:maj expected",
+      "false_match": 6,
+      "of": 26
+     },
+     {
+      "pair": "A:maj played, A:sus2 expected",
+      "false_match": 3,
+      "of": 17
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 2,
+      "of": 20
+     },
+     {
       "pair": "C#:maj7 played, C#:maj expected",
+      "false_match": 2,
+      "of": 22
+     },
+     {
+      "pair": "G#:maj7 played, G#:maj expected",
+      "false_match": 2,
+      "of": 12
+     },
+     {
+      "pair": "A:maj played, A:maj expected",
+      "false_match": 2,
+      "of": 16
+     },
+     {
+      "pair": "G#:maj played, G#:7 expected",
       "false_match": 1,
-      "of": 8
+      "of": 17
+     },
+     {
+      "pair": "A:7 played, A:7 expected",
+      "false_match": 1,
+      "of": 10
      },
      {
       "pair": "C#:maj played, F#:aug expected",
       "false_match": 1,
       "of": 1
-     },
-     {
-      "pair": "C:min7 played, D#:maj expected",
-      "false_match": 1,
-      "of": 2
-     },
-     {
-      "pair": "G#:maj7 played, G#:maj expected",
-      "false_match": 1,
-      "of": 4
-     },
-     {
-      "pair": "A:maj played, A:min expected",
-      "false_match": 1,
-      "of": 9
-     },
-     {
-      "pair": "E:hdim7 played, E:maj expected",
-      "false_match": 1,
-      "of": 1
-     },
-     {
-      "pair": "E:maj played, G#:min expected",
-      "false_match": 1,
-      "of": 8
-     },
-     {
-      "pair": "G:min played, G:maj expected",
-      "false_match": 1,
-      "of": 1
      }
-    ]
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 4,
+      "of": 357,
+      "pct": 1.1
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 2,
+      "of": 285,
+      "pct": 0.7
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 1,
+      "of": 236,
+      "pct": 0.4
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 2,
+      "of": 228,
+      "pct": 0.9
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 1,
+      "of": 187,
+      "pct": 0.5
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 1,
+      "of": 180,
+      "pct": 0.6
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 7,
+      "of": 180,
+      "pct": 3.9
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 0,
+      "of": 167,
+      "pct": 0.0
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 4,
+      "of": 162,
+      "pct": 2.5
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 16,
+      "of": 153,
+      "pct": 10.5
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 0,
+      "of": 138,
+      "pct": 0.0
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 3,
+      "of": 136,
+      "pct": 2.2
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "1/39",
+     "D#:maj7 played, D#:maj expected": "0/35",
+     "C:maj played, C:maj7 expected": "1/19",
+     "C:maj7 played, C:maj expected": "0/26",
+     "A:maj played, A:min expected": "1/12",
+     "A:min played, A:maj expected": "0/4",
+     "F:maj played, F:min expected": "0/5",
+     "F:min played, F:maj expected": "1/3"
+    }
    }
   },
   "pink20": {
@@ -384,7 +502,12 @@
      "pos": 2458,
      "leadsheet": 2458,
      "neg_other": 2458,
-     "neg_shared": 2452
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
     },
     "percentiles_10_25_50_75_90": {
      "pos": [
@@ -414,6 +537,20 @@
       0.0,
       0.0,
       0.047
+     ],
+     "neg_near": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.196
+     ],
+     "neg_edit": [
+      0.0,
+      0.0,
+      0.0,
+      0.149,
+      0.513
      ]
     },
     "roc_pos_vs_all_neg": {
@@ -428,67 +565,166 @@
      "tpr": 40.5,
      "fpr": 6.7
     },
+    "roc_pos_vs_one_note": {
+     "auc": 0.605,
+     "best_thr": 0.198,
+     "tpr": 38.3,
+     "fpr": 18.9
+    },
     "roc_leadsheet_vs_all_neg": {
      "auc": 0.577,
      "best_thr": 0.003,
-     "tpr": 21.2,
+     "tpr": 21.1,
      "fpr": 6.2
     },
-    "at_threshold": {
-     "pos_vs_neg": {
-      "thr": 0.6,
-      "tpr": 21.1,
-      "fpr": 0.3
-     },
-     "pos_vs_shared": {
-      "thr": 0.6,
-      "tpr": 21.1,
-      "fpr": 0.7
-     },
+    "rates": {
+     "tpr": 21.1,
+     "fpr_all": 0.3,
+     "fpr_shared": 0.7,
+     "fpr_near": 1.9,
+     "fpr_edit": 7.0,
+     "fpr_one_note": 5.5,
+     "fpr_add": 13.4,
+     "fpr_drop": 5.0,
+     "fpr_move": 1.4,
      "leadsheet_tpr": 4.9
     },
     "top_shared_confusions": [
      {
-      "pair": "C#:maj7 played, C#:maj expected",
-      "false_match": 1,
-      "of": 8
+      "pair": "F:maj played, F:maj expected",
+      "false_match": 4,
+      "of": 38
      },
      {
-      "pair": "C#:maj played, F#:aug expected",
-      "false_match": 1,
-      "of": 1
+      "pair": "A:maj played, A:sus2 expected",
+      "false_match": 3,
+      "of": 17
      },
      {
-      "pair": "C:min7 played, D#:maj expected",
-      "false_match": 1,
-      "of": 2
-     },
-     {
-      "pair": "G#:maj7 played, G#:maj expected",
-      "false_match": 1,
-      "of": 4
-     },
-     {
-      "pair": "G:min7 played, D:maj7 expected",
-      "false_match": 1,
-      "of": 1
-     },
-     {
-      "pair": "A:maj played, A:min expected",
-      "false_match": 1,
-      "of": 9
-     },
-     {
-      "pair": "E:hdim7 played, E:maj expected",
-      "false_match": 1,
-      "of": 1
+      "pair": "C#:maj played, C#:maj expected",
+      "false_match": 3,
+      "of": 26
      },
      {
       "pair": "D#:maj played, D#:maj7 expected",
+      "false_match": 3,
+      "of": 39
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 2,
+      "of": 20
+     },
+     {
+      "pair": "C#:maj7 played, C#:maj expected",
+      "false_match": 2,
+      "of": 22
+     },
+     {
+      "pair": "G#:maj7 played, G#:maj expected",
+      "false_match": 2,
+      "of": 12
+     },
+     {
+      "pair": "A:maj played, A:maj expected",
+      "false_match": 2,
+      "of": 16
+     },
+     {
+      "pair": "G#:maj played, G#:7 expected",
       "false_match": 1,
       "of": 17
+     },
+     {
+      "pair": "F#:maj7 played, D#:min expected",
+      "false_match": 1,
+      "of": 6
      }
-    ]
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 5,
+      "of": 357,
+      "pct": 1.4
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 0,
+      "of": 285,
+      "pct": 0.0
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 0,
+      "of": 236,
+      "pct": 0.0
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 3,
+      "of": 228,
+      "pct": 1.3
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 1,
+      "of": 187,
+      "pct": 0.5
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 1,
+      "of": 180,
+      "pct": 0.6
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 5,
+      "of": 180,
+      "pct": 2.8
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 0,
+      "of": 167,
+      "pct": 0.0
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 5,
+      "of": 162,
+      "pct": 3.1
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 9,
+      "of": 153,
+      "pct": 5.9
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 0,
+      "of": 138,
+      "pct": 0.0
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 2,
+      "of": 136,
+      "pct": 1.5
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "3/39",
+     "D#:maj7 played, D#:maj expected": "0/35",
+     "C:maj played, C:maj7 expected": "0/19",
+     "C:maj7 played, C:maj expected": "1/26",
+     "A:maj played, A:min expected": "1/12",
+     "A:min played, A:maj expected": "0/4",
+     "F:maj played, F:min expected": "1/5",
+     "F:min played, F:maj expected": "1/3"
+    }
    }
   },
   "pink10": {
@@ -628,7 +864,12 @@
      "pos": 2458,
      "leadsheet": 2458,
      "neg_other": 2458,
-     "neg_shared": 2452
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
     },
     "percentiles_10_25_50_75_90": {
      "pos": [
@@ -658,76 +899,194 @@
       0.0,
       0.0,
       0.0
+     ],
+     "neg_near": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "neg_edit": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.3
      ]
     },
     "roc_pos_vs_all_neg": {
      "auc": 0.63,
      "best_thr": 0.001,
      "tpr": 28.6,
-     "fpr": 3.1
+     "fpr": 3.0
     },
     "roc_pos_vs_shared": {
      "auc": 0.617,
-     "best_thr": 0.002,
+     "best_thr": 0.001,
      "tpr": 28.6,
      "fpr": 6.0
+    },
+    "roc_pos_vs_one_note": {
+     "auc": 0.56,
+     "best_thr": 0.163,
+     "tpr": 23.1,
+     "fpr": 11.9
     },
     "roc_leadsheet_vs_all_neg": {
      "auc": 0.544,
      "best_thr": 0.001,
      "tpr": 11.7,
-     "fpr": 3.1
+     "fpr": 3.0
     },
-    "at_threshold": {
-     "pos_vs_neg": {
-      "thr": 0.6,
-      "tpr": 8.7,
-      "fpr": 0.1
-     },
-     "pos_vs_shared": {
-      "thr": 0.6,
-      "tpr": 8.7,
-      "fpr": 0.3
-     },
+    "rates": {
+     "tpr": 8.7,
+     "fpr_all": 0.1,
+     "fpr_shared": 0.3,
+     "fpr_near": 0.8,
+     "fpr_edit": 4.0,
+     "fpr_one_note": 3.1,
+     "fpr_add": 7.6,
+     "fpr_drop": 2.8,
+     "fpr_move": 0.9,
      "leadsheet_tpr": 1.7
     },
     "top_shared_confusions": [
      {
+      "pair": "C#:maj played, C#:maj7 expected",
+      "false_match": 2,
+      "of": 26
+     },
+     {
+      "pair": "G#:maj7 played, G#:maj expected",
+      "false_match": 2,
+      "of": 12
+     },
+     {
+      "pair": "D#:maj played, D#:maj7 expected",
+      "false_match": 2,
+      "of": 39
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 1,
+      "of": 20
+     },
+     {
       "pair": "A#:maj played, G#:7 expected",
+      "false_match": 1,
+      "of": 3
+     },
+     {
+      "pair": "F#:maj7 played, F#:maj7 expected",
+      "false_match": 1,
+      "of": 10
+     },
+     {
+      "pair": "F#:7 played, F#:maj expected",
+      "false_match": 1,
+      "of": 3
+     },
+     {
+      "pair": "G#:7 played, G#:7 expected",
+      "false_match": 1,
+      "of": 11
+     },
+     {
+      "pair": "C#:sus2 played, C#:maj expected",
       "false_match": 1,
       "of": 2
      },
      {
-      "pair": "C#:maj played, C#:maj7 expected",
-      "false_match": 1,
-      "of": 13
-     },
-     {
-      "pair": "G#:maj7 played, G#:maj expected",
-      "false_match": 1,
-      "of": 4
-     },
-     {
-      "pair": "D:maj played, C:maj expected",
-      "false_match": 1,
-      "of": 9
-     },
-     {
-      "pair": "A:maj played, A:min expected",
-      "false_match": 1,
-      "of": 9
-     },
-     {
-      "pair": "D#:maj played, D#:maj7 expected",
-      "false_match": 1,
-      "of": 17
-     },
-     {
-      "pair": "D#:maj played, C:min7 expected",
+      "pair": "G#:7 played, A:7 expected",
       "false_match": 1,
       "of": 4
      }
-    ]
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 1,
+      "of": 357,
+      "pct": 0.3
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 0,
+      "of": 285,
+      "pct": 0.0
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 0,
+      "of": 236,
+      "pct": 0.0
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 0,
+      "of": 228,
+      "pct": 0.0
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 1,
+      "of": 187,
+      "pct": 0.5
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 1,
+      "of": 180,
+      "pct": 0.6
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 5,
+      "of": 180,
+      "pct": 2.8
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 0,
+      "of": 167,
+      "pct": 0.0
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 2,
+      "of": 162,
+      "pct": 1.2
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 2,
+      "of": 153,
+      "pct": 1.3
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 0,
+      "of": 138,
+      "pct": 0.0
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 1,
+      "of": 136,
+      "pct": 0.7
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "2/39",
+     "D#:maj7 played, D#:maj expected": "0/35",
+     "C:maj played, C:maj7 expected": "0/19",
+     "C:maj7 played, C:maj expected": "0/26",
+     "A:maj played, A:min expected": "1/12",
+     "A:min played, A:maj expected": "0/4",
+     "F:maj played, F:min expected": "0/5",
+     "F:min played, F:maj expected": "0/3"
+    }
    }
   },
   "white15": {
@@ -867,7 +1226,12 @@
      "pos": 2458,
      "leadsheet": 2458,
      "neg_other": 2458,
-     "neg_shared": 2452
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
     },
     "percentiles_10_25_50_75_90": {
      "pos": [
@@ -897,81 +1261,194 @@
       0.0,
       0.0,
       0.06
+     ],
+     "neg_near": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.217
+     ],
+     "neg_edit": [
+      0.0,
+      0.0,
+      0.0,
+      0.192,
+      0.521
      ]
     },
     "roc_pos_vs_all_neg": {
      "auc": 0.724,
-     "best_thr": 0.0,
-     "tpr": 49.5,
-     "fpr": 7.0
+     "best_thr": 0.001,
+     "tpr": 49.3,
+     "fpr": 6.9
     },
     "roc_pos_vs_shared": {
      "auc": 0.704,
-     "best_thr": 0.086,
-     "tpr": 45.6,
+     "best_thr": 0.087,
+     "tpr": 45.5,
      "fpr": 8.8
+    },
+    "roc_pos_vs_one_note": {
+     "auc": 0.617,
+     "best_thr": 0.208,
+     "tpr": 40.7,
+     "fpr": 20.0
     },
     "roc_leadsheet_vs_all_neg": {
      "auc": 0.584,
-     "best_thr": 0.002,
-     "tpr": 23.1,
+     "best_thr": 0.003,
+     "tpr": 23.0,
      "fpr": 6.9
     },
-    "at_threshold": {
-     "pos_vs_neg": {
-      "thr": 0.6,
-      "tpr": 23.1,
-      "fpr": 0.2
-     },
-     "pos_vs_shared": {
-      "thr": 0.6,
-      "tpr": 23.1,
-      "fpr": 0.5
-     },
+    "rates": {
+     "tpr": 23.1,
+     "fpr_all": 0.2,
+     "fpr_shared": 0.5,
+     "fpr_near": 2.1,
+     "fpr_edit": 7.1,
+     "fpr_one_note": 5.6,
+     "fpr_add": 14.1,
+     "fpr_drop": 4.4,
+     "fpr_move": 1.3,
      "leadsheet_tpr": 5.5
     },
     "top_shared_confusions": [
      {
+      "pair": "F:maj played, F:maj expected",
+      "false_match": 7,
+      "of": 38
+     },
+     {
+      "pair": "C#:maj played, C#:maj expected",
+      "false_match": 4,
+      "of": 26
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 2,
+      "of": 20
+     },
+     {
       "pair": "C#:maj7 played, C#:maj expected",
-      "false_match": 1,
-      "of": 8
+      "false_match": 2,
+      "of": 22
      },
      {
-      "pair": "C#:maj played, F#:aug expected",
-      "false_match": 1,
-      "of": 1
+      "pair": "A:maj played, A:sus2 expected",
+      "false_match": 2,
+      "of": 17
      },
      {
-      "pair": "D#:min7 played, F#:7 expected",
-      "false_match": 1,
-      "of": 2
-     },
-     {
-      "pair": "C#:maj played, C#:maj7 expected",
-      "false_match": 1,
-      "of": 13
+      "pair": "F:maj played, F:maj7 expected",
+      "false_match": 2,
+      "of": 15
      },
      {
       "pair": "G#:maj7 played, G#:maj expected",
-      "false_match": 1,
-      "of": 4
+      "false_match": 2,
+      "of": 12
      },
      {
-      "pair": "E:maj played, D:maj expected",
-      "false_match": 1,
-      "of": 8
+      "pair": "A:maj played, A:maj expected",
+      "false_match": 2,
+      "of": 16
      },
      {
-      "pair": "E:hdim7 played, E:maj expected",
-      "false_match": 1,
-      "of": 1
+      "pair": "D#:maj played, D#:maj7 expected",
+      "false_match": 2,
+      "of": 39
      },
      {
-      "pair": "G:min played, G:maj expected",
+      "pair": "G#:maj played, G#:7 expected",
       "false_match": 1,
-      "of": 1
+      "of": 17
      }
-    ]
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 5,
+      "of": 357,
+      "pct": 1.4
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 0,
+      "of": 285,
+      "pct": 0.0
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 1,
+      "of": 236,
+      "pct": 0.4
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 2,
+      "of": 228,
+      "pct": 0.9
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 1,
+      "of": 187,
+      "pct": 0.5
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 1,
+      "of": 180,
+      "pct": 0.6
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 8,
+      "of": 180,
+      "pct": 4.4
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 0,
+      "of": 167,
+      "pct": 0.0
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 4,
+      "of": 162,
+      "pct": 2.5
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 14,
+      "of": 153,
+      "pct": 9.2
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 0,
+      "of": 138,
+      "pct": 0.0
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 2,
+      "of": 136,
+      "pct": 1.5
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "2/39",
+     "D#:maj7 played, D#:maj expected": "0/35",
+     "C:maj played, C:maj7 expected": "1/19",
+     "C:maj7 played, C:maj expected": "0/26",
+     "A:maj played, A:min expected": "0/12",
+     "A:min played, A:maj expected": "0/4",
+     "F:maj played, F:min expected": "0/5",
+     "F:min played, F:maj expected": "1/3"
+    }
    }
   },
   "phone": {
@@ -1111,7 +1588,12 @@
      "pos": 2458,
      "leadsheet": 2458,
      "neg_other": 2458,
-     "neg_shared": 2452
+     "neg_shared": 2452,
+     "neg_near": 2456,
+     "neg_edit_add": 2458,
+     "neg_edit": 6042,
+     "neg_edit_move": 2458,
+     "neg_edit_drop": 1126
     },
     "percentiles_10_25_50_75_90": {
      "pos": [
@@ -1141,6 +1623,20 @@
       0.0,
       0.0,
       0.087
+     ],
+     "neg_near": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.251
+     ],
+     "neg_edit": [
+      0.0,
+      0.0,
+      0.0,
+      0.198,
+      0.553
      ]
     },
     "roc_pos_vs_all_neg": {
@@ -1155,67 +1651,166 @@
      "tpr": 44.5,
      "fpr": 8.1
     },
+    "roc_pos_vs_one_note": {
+     "auc": 0.618,
+     "best_thr": 0.333,
+     "tpr": 35.8,
+     "fpr": 15.1
+    },
     "roc_leadsheet_vs_all_neg": {
      "auc": 0.588,
-     "best_thr": 0.034,
+     "best_thr": 0.033,
      "tpr": 23.1,
      "fpr": 6.4
     },
-    "at_threshold": {
-     "pos_vs_neg": {
-      "thr": 0.6,
-      "tpr": 24.2,
-      "fpr": 0.3
-     },
-     "pos_vs_shared": {
-      "thr": 0.6,
-      "tpr": 24.2,
-      "fpr": 0.7
-     },
+    "rates": {
+     "tpr": 24.2,
+     "fpr_all": 0.3,
+     "fpr_shared": 0.7,
+     "fpr_near": 2.6,
+     "fpr_edit": 8.3,
+     "fpr_one_note": 6.6,
+     "fpr_add": 16.9,
+     "fpr_drop": 4.4,
+     "fpr_move": 1.4,
      "leadsheet_tpr": 6.3
     },
     "top_shared_confusions": [
      {
-      "pair": "D#:maj7 played, D#:maj expected",
-      "false_match": 1,
-      "of": 12
+      "pair": "F:maj played, F:maj expected",
+      "false_match": 8,
+      "of": 38
+     },
+     {
+      "pair": "C#:maj played, C#:maj expected",
+      "false_match": 5,
+      "of": 26
+     },
+     {
+      "pair": "G#:maj played, G#:maj7 expected",
+      "false_match": 2,
+      "of": 20
      },
      {
       "pair": "C#:maj7 played, C#:maj expected",
-      "false_match": 1,
-      "of": 8
+      "false_match": 2,
+      "of": 22
      },
      {
-      "pair": "C#:maj played, F#:aug expected",
-      "false_match": 1,
-      "of": 1
+      "pair": "C:maj played, C:maj7 expected",
+      "false_match": 2,
+      "of": 19
      },
      {
-      "pair": "F:7 played, G#:min expected",
-      "false_match": 1,
-      "of": 2
+      "pair": "A:maj played, A:sus2 expected",
+      "false_match": 2,
+      "of": 17
      },
      {
-      "pair": "F:maj played, G#:7 expected",
-      "false_match": 1,
-      "of": 3
+      "pair": "G#:7 played, G#:7 expected",
+      "false_match": 2,
+      "of": 11
      },
      {
-      "pair": "E:maj played, D:maj expected",
-      "false_match": 1,
-      "of": 8
+      "pair": "F:maj played, F:maj7 expected",
+      "false_match": 2,
+      "of": 15
      },
      {
-      "pair": "A:maj played, A:7 expected",
-      "false_match": 1,
-      "of": 6
+      "pair": "A:maj played, A:maj expected",
+      "false_match": 2,
+      "of": 16
      },
      {
-      "pair": "D:maj played, A:maj7 expected",
+      "pair": "D#:maj7 played, D#:maj expected",
       "false_match": 1,
-      "of": 3
+      "of": 35
      }
-    ]
+    ],
+    "quality_confusions": [
+     {
+      "pair": "maj played, maj expected",
+      "false_match": 3,
+      "of": 357,
+      "pct": 0.8
+     },
+     {
+      "pair": "maj played, min expected",
+      "false_match": 2,
+      "of": 285,
+      "pct": 0.7
+     },
+     {
+      "pair": "min played, maj expected",
+      "false_match": 0,
+      "of": 236,
+      "pct": 0.0
+     },
+     {
+      "pair": "maj played, maj7 expected",
+      "false_match": 4,
+      "of": 228,
+      "pct": 1.8
+     },
+     {
+      "pair": "maj played, 7 expected",
+      "false_match": 3,
+      "of": 187,
+      "pct": 1.6
+     },
+     {
+      "pair": "maj played, min7 expected",
+      "false_match": 1,
+      "of": 180,
+      "pct": 0.6
+     },
+     {
+      "pair": "maj played, maj7 expected (same root)",
+      "false_match": 10,
+      "of": 180,
+      "pct": 5.6
+     },
+     {
+      "pair": "maj7 played, maj expected",
+      "false_match": 0,
+      "of": 167,
+      "pct": 0.0
+     },
+     {
+      "pair": "maj7 played, maj expected (same root)",
+      "false_match": 4,
+      "of": 162,
+      "pct": 2.5
+     },
+     {
+      "pair": "maj played, maj expected (same root)",
+      "false_match": 17,
+      "of": 153,
+      "pct": 11.1
+     },
+     {
+      "pair": "7 played, maj expected",
+      "false_match": 1,
+      "of": 138,
+      "pct": 0.7
+     },
+     {
+      "pair": "min7 played, maj expected",
+      "false_match": 1,
+      "of": 136,
+      "pct": 0.7
+     }
+    ],
+    "named_pairs": {
+     "D#:maj played, D#:maj7 expected": "1/39",
+     "D#:maj7 played, D#:maj expected": "1/35",
+     "C:maj played, C:maj7 expected": "2/19",
+     "C:maj7 played, C:maj expected": "1/26",
+     "A:maj played, A:min expected": "1/12",
+     "A:min played, A:maj expected": "0/4",
+     "F:maj played, F:min expected": "1/5",
+     "F:min played, F:maj expected": "1/3"
+    }
    }
   }
  }
