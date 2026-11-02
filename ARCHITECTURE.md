@@ -1,6 +1,9 @@
 # Architecture — personal guitar practice app (Android first, iOS later)
 
 ## 1. Modules
+Implemented so far: `dsp/` (gdsp), `core/` (mucore: PlayAnalyzer = matcher + windows + scoring, Tuner, OnsetCollector,
+robust calibration offset, SPSC queues), `android/` (Oboe engine + JNI in `app/src/main/cpp`, Compose UI). The song
+model/JSON parsing is in Kotlin for now (`android/.../song/`); the core receives expected events as arrays.
 ```
 core/ (C++17, shared, no platform deps)
   dsp/        FFT, YIN/MPM pitch, spectral-flux onsets, chroma + chord verifier   (PoC: dsp/)
@@ -124,6 +127,8 @@ offline desktop/Node converter is fine, and you'd only push JSON + audio to the 
 ## 8. Milestones
 1. **M0 – DSP PoC (done)**: YIN, spectral flux, chroma verifier, WAV CLI, synthetic tests; real-time-safe analyzers,
    benchmark, chord margins (unexplained-peak penalty + onset-local spectral difference), importer started (M4).
+   Status (Nov 2026): M0, M4 done; GuitarSet evaluation replaced the phone-recorded M1 clips; M2/M3/M5 built as the
+   Android debug MVP (`android/`), not yet validated on a device. Missing from M5: backing track, section looping.
 2. **M1 – Real-audio validation** (1–2 wk): record 30+ real guitar clips with your phone (single notes per string,
    10 common chords, wrong-chord negatives). Tune thresholds and add MPM as an alternative for the low E and
    noisy input. Make the test-suite fixtures include the real clips.

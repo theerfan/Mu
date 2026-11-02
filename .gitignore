@@ -1,3 +1,5 @@
 dsp/build/
 data/
 __pycache__/
+dist/
+core/build/

@@ -15,7 +15,12 @@ dsp/test/run_tests.sh     builds, synthesises, asserts results
 dsp/test/chord_table.sh   chord score matrix (audio x expected) as markdown
 dsp/test/results.txt      latest test output;  dsp/test/bench.txt  latest benchmark
 importer/                 Guitar Pro / MusicXML -> song JSON (Node + alphaTab), see "Song importer"
+core/                     platform-free practice core: PlayAnalyzer (scoring), Tuner, calibration math, SPSC queues
+android/                  Android app (Kotlin/Compose + Oboe/NDK), see android/README.md
+dist/                     built APK (gitignored): dist/mu-debug.apk via android/build_apk.sh
 ```
+
+**Android app**: see [`android/README.md`](android/README.md) for build, sideloading, loading songs, and known gaps.
 
 ## Build & run
 ```
