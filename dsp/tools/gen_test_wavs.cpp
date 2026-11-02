@@ -69,5 +69,12 @@ int main(int argc, char** argv) {
       {"C_Am", &Cmaj, &Am}, {"Am_C", &Am, &Cmaj}, {"G_Em", &Gmaj, &Em}, {"Em_G", &Em, &Gmaj}, {"C_G", &Cmaj, &Gmaj}};
   for (auto& t : tr) { std::vector<float> x; strum(x, sr, 0.3, *t.a); strum(x, sr, 1.3, *t.b); finish(x, 25);
     writeWav16(d + "/trans_" + t.n + ".wav", x, sr); }
+  // One-note-apart pairs (maj vs maj7): open Cmaj7 x32000 and a D#/Eb barre shape at fret 6 (A-string root).
+  const std::vector<int> Cmaj7 = {48, 52, 55, 59, 64};      // C3 E3 G3 B3 E4
+  const std::vector<int> Ebmaj = {51, 58, 63, 67, 70};      // Eb3 Bb3 Eb4 G4 Bb4
+  const std::vector<int> Ebmaj7 = {51, 58, 62, 67, 70};     // Eb3 Bb3 D4 G4 Bb4
+  { std::vector<float> x; strum(x, sr, 0.3, Cmaj7); finish(x, 25); writeWav16(d + "/chord_Cmaj7.wav", x, sr); }
+  { std::vector<float> x; strum(x, sr, 0.3, Ebmaj); finish(x, 25); writeWav16(d + "/chord_Ebmaj.wav", x, sr); }
+  { std::vector<float> x; strum(x, sr, 0.3, Ebmaj7); finish(x, 25); writeWav16(d + "/chord_Ebmaj7.wav", x, sr); }
   std::printf("wrote test wavs to %s\n", d.c_str());
 }
