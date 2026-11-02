@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(mu_native CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(MU_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../..)
+set(MU_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+add_subdirectory(${MU_ROOT}/core ${CMAKE_BINARY_DIR}/mucore)
+find_package(oboe REQUIRED CONFIG)
+add_library(mu_native SHARED audio_engine.cpp jni_bridge.cpp)
+target_link_libraries(mu_native mucore oboe::oboe log)
+# The DSP must be optimised even in debug APKs (AGP builds native code as Debug for debug variants).
+foreach(t gdsp mucore mu_native)
+  target_compile_options(${t} PRIVATE -O2 -ffast-math -fno-finite-math-only -Wall)
+endforeach()
