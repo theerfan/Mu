@@ -57,6 +57,8 @@ int main(int argc, char** argv) {
   YinPitch yin(sr, yinW, 70.f, 1400.f);
   bench("YinPitch::process (70 Hz min)", 2000, [&] { gSink = yin.process(x.data()).freqHz; }, hopUs);
   ChordVerifier cv(sr, (int)(0.8 * sr)); const int exp[5] = {48, 52, 55, 60, 64};
+  ChordVerifier cv1(sr, (int)(0.8 * sr)); cv1.strict = false;
+  bench("ChordVerifier::verify (v1: strict off)", 500, [&] { gSink = cv1.verify(&x[sr / 10], chordLen, exp, 5).score; }, hopUs);
   bench("ChordVerifier::verify", 500, [&] { gSink = cv.verify(&x[sr / 10], chordLen, exp, 5).score; }, hopUs);
   bench("ChordVerifier::verify (+pre diff)", 500, [&] { gSink = cv.verify(&x[sr / 2], chordLen, exp, 5, x.data(), (int)(0.3 * sr)).score; }, hopUs);
   std::printf("budget = one hop of real time. YIN runs ~3x per onset and verify once per expected chord,\n"

@@ -83,7 +83,7 @@ class OnsetDetector {
 
 void chromaFromSpectrum(const std::vector<float>& mag, int sampleRate, int n, float fmin, float fmax, float chroma[12]);
 
-constexpr float kChordMatchThreshold = 0.58f;  // tuned on GuitarSet train split (balanced accuracy)
+constexpr float kChordMatchThreshold = 0.58f;  // v1 fixed threshold; ChordVerifier::thresholdFor() supersedes
 
 struct ChordMatch {
   float score = 0;       // final score in [0,1]
@@ -92,6 +92,15 @@ struct ChordMatch {
   float purity = 0;      // chroma energy share inside the expected pitch classes
   float unexplained = 0; // chroma energy in bins neither expected nor a harmonic of an expected note
   float chroma[12] = {};
+  // Strict (note-level) evidence, filled when ChordVerifier::strict is on. Salience = level of a note's
+  // harmonic-unique partials above the local spectral noise floor, in dB.
+  float missSalDb = 99.f;   // weakest expected pitch class (99 = no decidable expected note)
+  float extraSalDb = -99.f; // strongest non-expected pitch class at/above the bass (-99 = none decidable)
+  int weakestPc = -1, extraPc = -1;
+  float snrDb = 0;          // segment spectral SNR: strongest peak (70-2000 Hz) over median floor
+  float generalScore = 0;   // score before the strict factor
+  float threshold = 0;      // decision threshold for this segment (noise-adaptive if enabled)
+  bool match = false;       // score >= threshold
 };
 
 // Chord verification against expected notes. Construct once per stream (allocates);
@@ -113,10 +122,45 @@ class ChordVerifier {
   float unexplWeightExp = 2.f;   // peak weight = magnitude^exp (0.5 = sqrt: small peaks count a lot)
   bool ignoreBelowBass = true;   // ignore peaks below the lowest expected fundamental (body/air resonance)
   float coverageRelThr = 0.25f;  // expected pitch class counts as present if chroma >= this * max
+
+  // ---- Strict mode: note-level presence/absence test for chords one or two notes apart ----
+  // score = general * P(all expected pitch classes present) * (1 - P(some other pitch class present)),
+  // with P(x) = logistic((salience_dB - center) / width). Every pitch class not in the expected chord is a
+  // candidate "neighbour" note (covers maj<->maj7/7/6/add9/sus and maj<->min); optionally restricted to the
+  // song-aware list given to setNeighbours(). Partials shared with expected notes' harmonics are skipped, so
+  // e.g. a B3 that is also E2's 3rd harmonic can't count as evidence either way.
+  // Defaults tuned on GuitarSet players 00-03 (eval/tune_strict.py). Centres move with the segment SNR:
+  // centre + strictSnrAdapt * (snrDb - strictSnrRefDb), i.e. noisier audio needs less salience.
+  bool strict = true;
+  float missCenterDb = 6.f, missWidthDb = 4.f;
+  float extraCenterDb = 24.f, extraWidthDb = 4.f;
+  float strictSnrAdapt = 0.5f, strictSnrRefDb = 23.f, strictSnrMaxDb = 30.f;  // SNR clamped to <= max
+  float strictMaxHz = 5000.f;     // only partials up to this frequency count as evidence (inharmonicity)
+  int strictMaxMidi = 88;          // highest candidate extra note
+  // per-note salience from its unique partials: 0 max, 1 mean, 2 2nd-largest (separately for the two tests)
+  int missCombine = 1, extraCombine = 1;
+  float strictPreSubtract = 0.8f; // ringing removal (|post| - b*|pre|) for the extra-note test only
+  // Optional song-aware neighbour notes (MIDI pitch classes used; up to 12). Empty = all non-expected classes.
+  void setNeighbours(const int* midi, int n);
+  // ---- Noise-adaptive decision threshold ----
+  // threshold = baseThreshold + slope * clamp(refSnrDb - snrDb, 0, 40); slope 0 = fixed threshold.
+  // v1: fixed 0.58 without strict mode. With strict mode the tuned threshold is 0.32 and a threshold slope
+  // gave no further gain on GuitarSet (noise adaptation happens through the salience centres above).
+  float baseThreshold = 0.32f, thresholdSlope = 0.f, refSnrDb = 30.f;
+  float generalThreshold = kChordMatchThreshold;  // used instead when strict == false
+  float thresholdFor(float snrDb) const;
  private:
+  float salience(const std::vector<float>& mag, int midi, const int* others, int nOthers, int combine) const;
+  float floorAt(float hz) const;
+  void computeFloor(const std::vector<float>& mag);
   int sr_, maxLen_;
   SpectrumAnalyzer spec_;
-  std::vector<float> post_;
+  std::vector<float> post_, raw_, pre_, diff_, scratch_;
+  static constexpr int kBands = 24;
+  float bandLo_[kBands] = {}, bandFloor_[kBands] = {};
+  int nBands_ = 0;
+  bool neighbourPc_[12] = {}; bool haveNeighbours_ = false;
+  float semis_[65] = {};  // 12*log2(g), g=1..64, filled in the constructor
 };
 
 }  // namespace gdsp

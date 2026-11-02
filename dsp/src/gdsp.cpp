@@ -171,17 +171,84 @@ void chromaFromSpectrum(const std::vector<float>& mag, int sr, int n, float fmin
 
 static int pow2Ceil(int v) { int n = 1; while (n < v) n <<= 1; return n; }
 ChordVerifier::ChordVerifier(int sr, int maxLen)
-    : sr_(sr), maxLen_(std::min(maxLen, 32768)), spec_(pow2Ceil(std::min(maxLen, 32768))), post_(spec_.size() / 2 + 1) {}
+    : sr_(sr), maxLen_(std::min(maxLen, 32768)), spec_(pow2Ceil(std::min(maxLen, 32768))),
+      post_(spec_.size() / 2 + 1), raw_(spec_.size() / 2 + 1), pre_(spec_.size() / 2 + 1), diff_(spec_.size() / 2 + 1),
+      scratch_(spec_.size() / 2 + 1) {
+  for (int g = 1; g <= 64; ++g) semis_[g] = 12.f * std::log2((float)g);
+  // third-octave bands from 60 Hz up to 6 kHz for the noise floor
+  float lo = 60.f; nBands_ = 0;
+  while (nBands_ < kBands && lo < 6000.f) { bandLo_[nBands_++] = lo; lo *= 1.2599f; }
+}
+
+void ChordVerifier::setNeighbours(const int* midi, int n) {
+  std::fill(neighbourPc_, neighbourPc_ + 12, false); haveNeighbours_ = n > 0;
+  for (int i = 0; i < n && i < 64; ++i) neighbourPc_[((midi[i] % 12) + 12) % 12] = true;
+}
+
+float ChordVerifier::thresholdFor(float snrDb) const {
+  float d = std::min(40.f, std::max(0.f, refSnrDb - snrDb));
+  return baseThreshold + thresholdSlope * d;
+}
+
+void ChordVerifier::computeFloor(const std::vector<float>& mag) {
+  const int n = spec_.size();
+  for (int b = 0; b < nBands_; ++b) {
+    int k0 = std::max(1, (int)(bandLo_[b] * n / sr_)), k1 = std::min((int)mag.size() - 1, (int)(bandLo_[b] * 1.2599f * n / sr_));
+    int cnt = 0; for (int k = k0; k <= k1; ++k) scratch_[cnt++] = mag[k];
+    if (cnt == 0) { bandFloor_[b] = b ? bandFloor_[b - 1] : 1e-9f; continue; }
+    // median of the band = noise floor (partials occupy few bins); robust to a couple of peaks
+    std::nth_element(scratch_.begin(), scratch_.begin() + cnt / 2, scratch_.begin() + cnt);
+    bandFloor_[b] = std::max(1e-12f, scratch_[cnt / 2]);
+  }
+}
+float ChordVerifier::floorAt(float hz) const {
+  int b = 0; while (b + 1 < nBands_ && bandLo_[b + 1] <= hz) ++b;
+  return bandFloor_[b];
+}
+// Salience of `midi`: max over partials h=1..4 that are not within 50 cents of any harmonic (1..10) of the
+// `others` notes, of 20*log10(peak / local floor). Returns NAN if no partial is harmonic-unique.
+float ChordVerifier::salience(const std::vector<float>& mag, int midi, const int* others, int nOthers, int combine) const {
+  // Partials h=1..4 (<= 5 kHz) of `midi` that are not within 50 cents of ANY harmonic (<= 5.2 kHz) of the
+  // `others` notes; salience = max of 20*log10(peak / local floor). NAN if no partial is harmonic-unique.
+  const float* semis = semis_;
+  const int n = spec_.size(); float best = NAN, second = NAN, sum = 0; int cnt = 0;
+  const float f0 = 440.f * std::pow(2.f, (midi - 69) / 12.f);
+  for (int h = 1; h <= 4; ++h) {
+    float f = f0 * h; if (f > strictMaxHz) break;
+    float mh = midi + semis[h]; bool unique = true;
+    for (int i = 0; i < nOthers && unique; ++i) {
+      float fr = 440.f * std::pow(2.f, (others[i] - 69) / 12.f);
+      int gmax = std::min(64, (int)(5200.f / fr));
+      for (int g = 1; g <= gmax && unique; ++g)
+        if (std::fabs(mh - (others[i] + semis[g])) < 0.5f) unique = false;
+    }
+    if (!unique) continue;
+    int kc = (int)std::lround(f * n / sr_), dk = std::max(1, (int)std::ceil(f * 0.0145f * n / sr_));  // +-25 cents
+    float pk = 0; for (int k = std::max(1, kc - dk); k <= std::min((int)mag.size() - 1, kc + dk); ++k) pk = std::max(pk, mag[k]);
+    float s = 20.f * std::log10(std::max(pk, 1e-12f) / floorAt(f));
+    sum += s; ++cnt;
+    if (!(best >= s)) { second = best; best = s; } else if (!(second >= s)) second = s;
+  }
+  if (combine == 1) return cnt ? sum / cnt : NAN;
+  if (combine == 2) return cnt >= 2 ? second : (cnt == 1 ? best - 6.f : NAN);  // single partial: discounted
+  return best;
+}
 
 ChordMatch ChordVerifier::verify(const float* x, int len, const int* exp, int nExp, const float* pre, int preLen) {
   ChordMatch r; if (nExp <= 0 || len <= 0) return r;
   len = std::min(len, maxLen_);
-  const std::vector<float>& m = spec_.process(x, len);
-  std::copy(m.begin(), m.end(), post_.begin());
-  if (pre && preLen > len / 8 && preSubtract > 0) {  // onset-local spectral difference: remove still-ringing energy
+  const bool havePre = pre && preLen > len / 8 && (preSubtract > 0 || (strict && strictPreSubtract > 0));
+  if (havePre) {  // pre-onset context first, so spec_.mag() ends up holding the post-onset spectrum (2 FFTs, not 3)
     const std::vector<float>& pm = spec_.process(pre, std::min(preLen, maxLen_));
-    for (size_t k = 0; k < post_.size(); ++k) post_[k] = std::max(0.f, post_[k] - preSubtract * pm[k]);
-    spec_.process(x, len);  // restore raw post-onset spectrum in spec_.mag() for chroma
+    std::copy(pm.begin(), pm.end(), pre_.begin());
+  }
+  const std::vector<float>& m = spec_.process(x, len);
+  std::copy(m.begin(), m.end(), raw_.begin());
+  std::copy(m.begin(), m.end(), post_.begin());
+  std::copy(m.begin(), m.end(), diff_.begin());
+  if (havePre) {  // onset-local spectral difference: remove still-ringing energy
+    if (preSubtract > 0) for (size_t k = 0; k < post_.size(); ++k) post_[k] = std::max(0.f, raw_[k] - preSubtract * pre_[k]);
+    if (strict && strictPreSubtract > 0) for (size_t k = 0; k < diff_.size(); ++k) diff_[k] = std::max(0.f, raw_[k] - strictPreSubtract * pre_[k]);
   }
   // Chroma (cosine/coverage) uses the raw spectrum so notes shared with the previous chord,
   // which are re-plucked, still count. The ringing-suppressed spectrum post_ is used for the
@@ -235,6 +302,46 @@ ChordMatch ChordVerifier::verify(const float* x, int len, const int* exp, int nE
   r.coverage = pcs ? (float)present / pcs : 0; r.purity = totE > 0 ? inE / totE : 0;
   r.score = r.cosine * r.coverage;
   if (usePenalty) r.score *= std::max(0.f, 1.f - unexplainedPenalty * r.unexplained);
+  r.generalScore = r.score;
+
+  // ---- noise floor + segment SNR ----
+  computeFloor(raw_);
+  {
+    const int n = spec_.size(); float pk = 0, fpk = 100.f;
+    for (int k = (int)(70.f * n / sr_); k <= (int)(2000.f * n / sr_) && k < (int)raw_.size(); ++k) if (raw_[k] > pk) { pk = raw_[k]; fpk = (float)k * sr_ / n; }
+    r.snrDb = 20.f * std::log10(std::max(pk, 1e-12f) / floorAt(fpk));
+  }
+  // ---- strict note-level evidence ----
+  if (strict) {
+    int lowest = 1000; for (int i = 0; i < nExp; ++i) lowest = std::min(lowest, exp[i]);
+    // expected pitch classes: present if any expected note of that class has a strong unique partial
+    int others[64]; float miss = 99.f; int weakest = -1;
+    for (int pc = 0; pc < 12; ++pc) {
+      if (!inSet[pc]) continue;
+      int no = 0; for (int i = 0; i < nExp && no < 64; ++i) if (exp[i] % 12 != pc) others[no++] = exp[i];
+      float best = NAN;
+      for (int i = 0; i < nExp; ++i) if (exp[i] % 12 == pc) { float s = salience(raw_, exp[i], others, no, missCombine); if (!(best >= s)) best = s; }
+      if (best == best && best < miss) { miss = best; weakest = pc; }
+    }
+    // non-expected pitch classes (neighbour candidates) between the bass note and E6
+    float extra = -99.f; int extraPc = -1;
+    for (int pc = 0; pc < 12; ++pc) {
+      if (inSet[pc] || (haveNeighbours_ && !neighbourPc_[pc])) continue;
+      for (int m = lowest + 1; m <= strictMaxMidi; ++m) {
+        if (m % 12 != pc) continue;
+        float s = salience(diff_, m, exp, nExp, extraCombine);
+        if (s == s && s > extra) { extra = s; extraPc = pc; }
+      }
+    }
+    r.missSalDb = miss; r.weakestPc = weakest; r.extraSalDb = extra; r.extraPc = extraPc;
+    auto logistic = [](float z) { return 1.f / (1.f + std::exp(-z)); };
+    const float shift = strictSnrAdapt * (std::min(r.snrDb, strictSnrMaxDb) - strictSnrRefDb);
+    float pAll = miss >= 98.f ? 1.f : logistic((miss - (missCenterDb + shift)) / missWidthDb);
+    float pExtra = extra <= -98.f ? 0.f : logistic((extra - (extraCenterDb + shift)) / extraWidthDb);
+    r.score *= pAll * (1.f - pExtra);
+  }
+  r.threshold = strict ? thresholdFor(r.snrDb) : generalThreshold;
+  r.match = r.score >= r.threshold;
   return r;
 }
 }  // namespace gdsp
