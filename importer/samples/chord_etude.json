@@ -1,0 +1,1181 @@
+{
+ "schema": 1,
+ "title": "Mu Chord Etude",
+ "artist": "theerfan",
+ "source": "manual",
+ "track": "Guitar",
+ "duration": 54.0,
+ "tuning": [
+  40,
+  45,
+  50,
+  55,
+  59,
+  64
+ ],
+ "capo": 0,
+ "tempoMap": [
+  {
+   "beat": 0,
+   "bpm": 80
+  }
+ ],
+ "timeSig": [
+  {
+   "bar": 0,
+   "num": 4,
+   "den": 4
+  }
+ ],
+ "sections": [
+  {
+   "name": "Open strings",
+   "start": 0.0,
+   "end": 15.0
+  },
+  {
+   "name": "Chords",
+   "start": 15.0,
+   "end": 39.0
+  },
+  {
+   "name": "Mixed",
+   "start": 39.0,
+   "end": 54.0
+  }
+ ],
+ "events": [
+  {
+   "t": 0.0,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 6,
+     "fret": 0,
+     "midi": 40
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 0.75,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 0,
+     "midi": 45
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 1.5,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 2.25,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 3.0,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 3.75,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 4.5,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 5.25,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 6.0,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 6.75,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 0,
+     "midi": 45
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 7.5,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 6,
+     "fret": 0,
+     "midi": 40
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 9.0,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 9.75,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 10.5,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 11.25,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 12.0,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 12.75,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 2,
+     "midi": 57
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 13.5,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 14.25,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 15.0,
+   "dur": 1.5,
+   "chord": "C",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 16.5,
+   "dur": 1.5,
+   "chord": "C",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 18.0,
+   "dur": 1.5,
+   "chord": "Cmaj7",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 19.5,
+   "dur": 1.5,
+   "chord": "Cmaj7",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 21.0,
+   "dur": 1.5,
+   "chord": "Am",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 0,
+     "midi": 45
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 2,
+     "midi": 57
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 22.5,
+   "dur": 1.5,
+   "chord": "Am",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 0,
+     "midi": 45
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 2,
+     "midi": 57
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 24.0,
+   "dur": 1.5,
+   "chord": "Em",
+   "notes": [
+    {
+     "string": 6,
+     "fret": 0,
+     "midi": 40
+    },
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 25.5,
+   "dur": 1.5,
+   "chord": "Em",
+   "notes": [
+    {
+     "string": 6,
+     "fret": 0,
+     "midi": 40
+    },
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 27.0,
+   "dur": 1.5,
+   "chord": "G",
+   "notes": [
+    {
+     "string": 6,
+     "fret": 3,
+     "midi": 43
+    },
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    },
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 3,
+     "midi": 67
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 28.5,
+   "dur": 1.5,
+   "chord": "G",
+   "notes": [
+    {
+     "string": 6,
+     "fret": 3,
+     "midi": 43
+    },
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    },
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 3,
+     "midi": 67
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 30.0,
+   "dur": 1.5,
+   "chord": "D",
+   "notes": [
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    },
+    {
+     "string": 3,
+     "fret": 2,
+     "midi": 57
+    },
+    {
+     "string": 2,
+     "fret": 3,
+     "midi": 62
+    },
+    {
+     "string": 1,
+     "fret": 2,
+     "midi": 66
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 31.5,
+   "dur": 1.5,
+   "chord": "D",
+   "notes": [
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    },
+    {
+     "string": 3,
+     "fret": 2,
+     "midi": 57
+    },
+    {
+     "string": 2,
+     "fret": 3,
+     "midi": 62
+    },
+    {
+     "string": 1,
+     "fret": 2,
+     "midi": 66
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 33.0,
+   "dur": 1.5,
+   "chord": "C",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 34.5,
+   "dur": 1.5,
+   "chord": "C",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 36.0,
+   "dur": 1.5,
+   "chord": "G",
+   "notes": [
+    {
+     "string": 6,
+     "fret": 3,
+     "midi": 43
+    },
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    },
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 3,
+     "midi": 67
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 37.5,
+   "dur": 1.5,
+   "chord": "G",
+   "notes": [
+    {
+     "string": 6,
+     "fret": 3,
+     "midi": 43
+    },
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    },
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 3,
+     "midi": 67
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 39.0,
+   "dur": 0.75,
+   "chord": "C",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 39.75,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 40.5,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 41.25,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 42.0,
+   "dur": 0.75,
+   "chord": "Am",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 0,
+     "midi": 45
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 2,
+     "midi": 57
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 42.75,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 43.5,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 44.25,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 2,
+     "midi": 57
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 45.0,
+   "dur": 0.75,
+   "chord": "G",
+   "notes": [
+    {
+     "string": 6,
+     "fret": 3,
+     "midi": 43
+    },
+    {
+     "string": 5,
+     "fret": 2,
+     "midi": 47
+    },
+    {
+     "string": 4,
+     "fret": 0,
+     "midi": 50
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 3,
+     "midi": 67
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 45.75,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 1,
+     "fret": 3,
+     "midi": 67
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 46.5,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 47.25,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 48.0,
+   "dur": 0.75,
+   "chord": "Cmaj7",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  },
+  {
+   "t": 48.75,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 2,
+     "fret": 0,
+     "midi": 59
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 49.5,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 50.25,
+   "dur": 0.75,
+   "notes": [
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    }
+   ],
+   "tech": []
+  },
+  {
+   "t": 51.0,
+   "dur": 3.0,
+   "chord": "C",
+   "notes": [
+    {
+     "string": 5,
+     "fret": 3,
+     "midi": 48
+    },
+    {
+     "string": 4,
+     "fret": 2,
+     "midi": 52
+    },
+    {
+     "string": 3,
+     "fret": 0,
+     "midi": 55
+    },
+    {
+     "string": 2,
+     "fret": 1,
+     "midi": 60
+    },
+    {
+     "string": 1,
+     "fret": 0,
+     "midi": 64
+    }
+   ],
+   "tech": [
+    "strum_down"
+   ]
+  }
+ ]
+}
