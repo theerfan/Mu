@@ -4,6 +4,7 @@ import com.theerfan.mu.play.Grade
 import com.theerfan.mu.play.Judgement
 import com.theerfan.mu.play.Kind
 import com.theerfan.mu.play.feedback
+import com.theerfan.mu.play.stars
 import com.theerfan.mu.play.summarize
 import com.theerfan.mu.ui.TunerMath
 import org.junit.Assert.assertEquals
@@ -50,5 +51,10 @@ class PlayTest {
         assertEquals(69, n2); assertTrue(c2 in 7.0..8.5)
         assertEquals(0, TunerMath.nearestString(83.0, listOf(40, 45, 50, 55, 59, 64)))
         assertEquals(3.0, TunerMath.median(listOf(5.0, 1.0, 3.0)), 0.0)
+    }
+
+    @Test fun starThresholds() {
+        assertEquals(0, stars(0, 0)); assertEquals(0, stars(399, 1000)); assertEquals(1, stars(400, 1000))
+        assertEquals(2, stars(700, 1000)); assertEquals(2, stars(899, 1000)); assertEquals(3, stars(900, 1000))
     }
 }

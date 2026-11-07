@@ -8,10 +8,18 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -38,6 +46,7 @@ class MainActivity : ComponentActivity() {
     fun requestMic() = micPermission.launch(Manifest.permission.RECORD_AUDIO)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge(SystemBarStyle.dark(Color.Transparent.toArgb()), SystemBarStyle.dark(Color.Transparent.toArgb()))
         super.onCreate(savedInstanceState)
         repo = SongRepository(applicationContext)
         micGranted.value = hasMic()
@@ -46,7 +55,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             MuTheme {
                 val nav = rememberNavController()
-                NavHost(nav, startDestination = "home") {
+                NavHost(
+                    nav, startDestination = "home",
+                    enterTransition = { slideIntoContainer(SlideDirection.Start, tween(280)) + fadeIn(tween(280)) },
+                    exitTransition = { fadeOut(tween(200)) },
+                    popEnterTransition = { fadeIn(tween(200)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.End, tween(260)) + fadeOut(tween(260)) },
+                ) {
                     composable("home") {
                         HomeScreen(
                             repo = repo, version = libraryVersion.intValue,

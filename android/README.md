@@ -19,7 +19,7 @@ between a CI APK and a locally built one.
 * On first launch, grant microphone access.
 
 ## First run
-1. **Calibrate** (top bar) once per output: phone speaker, wired, USB, Bluetooth are stored separately.
+1. **Calibrate** (home screen tile) once per output: phone speaker, wired, USB, Bluetooth are stored separately.
    * *Loopback* (automatic): speaker on, quiet room; 12 clicks are played and detected through the mic.
    * *Tap-along* (manual): mute the strings and strum on each click (4 count-in + 16). Includes your feel and the
      detector's bias, so it's what scoring uses when present. Headphones recommended.
@@ -37,7 +37,7 @@ cd importer && npm install
 node mu-import.mjs song.gp5 --list          # list tracks
 node mu-import.mjs song.gp5 --track 1 -o song.json
 ```
-On the phone either tap **Import song** (file picker), or *Share* / *Open with* the JSON from any app (Files,
+On the phone either tap **Import a song** (file picker, end of the song list), or *Share* / *Open with* the JSON from any app (Files,
 Drive, a chat app) and pick Mu. Imported songs live in app storage; delete them with the bin icon.
 
 ## Play screen

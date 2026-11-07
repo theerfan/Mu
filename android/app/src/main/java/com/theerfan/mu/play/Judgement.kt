@@ -90,3 +90,7 @@ fun summarize(js: List<Judgement>, total: Int, isChord: (Int) -> Boolean): Summa
         chordHits = hits.count { isChord(it.index) }, chordTotal = (0 until total).count(isChord),
     )
 }
+
+/** 0–3 stars from the share of the maximum score: 40 %, 70 %, 90 %. */
+val STAR_THRESHOLDS = floatArrayOf(0.4f, 0.7f, 0.9f)
+fun stars(score: Int, maxScore: Int): Int = if (maxScore <= 0) 0 else STAR_THRESHOLDS.count { score >= it * maxScore }
