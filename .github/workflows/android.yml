@@ -9,7 +9,7 @@ jobs:
   native-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: DSP synthetic tests
         run: ./dsp/test/run_tests.sh
       - name: mucore tests (scoring, tuner, calibration, SPSC)
@@ -21,12 +21,12 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
       - name: SDK packages
@@ -34,7 +34,7 @@ jobs:
       - name: Unit tests + debug APK
         working-directory: android
         run: ./gradlew testDebugUnitTest assembleDebug --console=plain
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: mu-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
