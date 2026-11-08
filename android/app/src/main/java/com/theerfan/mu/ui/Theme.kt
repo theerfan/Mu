@@ -10,22 +10,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 object MuColors {
-    // Backdrop: deep indigo night, lighter at the top.
-    val bgTop = Color(0xFF231A55)
-    val bg = Color(0xFF0D0B1F)
-    val surface = Color(0xFF1E1842)
-    val surfaceHi = Color(0xFF2B2360)
-    val stroke = Color(0x22FFFFFF)
+    // Backdrop: near-black, neutral greys (no colour cast).
+    val bgTop = Color(0xFF121314)
+    val bg = Color(0xFF050506)
+    val surface = Color(0xFF151618)
+    val surfaceHi = Color(0xFF222326)
+    val stroke = Color(0x1AFFFFFF)
     val text = Color.White
-    val textDim = Color(0xFFBDB6E6)
-    val textMuted = Color(0xFF7D77AA)
+    val textDim = Color(0xFFB8BBC2)
+    val textMuted = Color(0xFF6E727B)
 
     // Brand / actions
     val primary = Color(0xFF3BE37A)        // the big green "play" colour
     val primaryLip = Color(0xFF1B9A4D)
     val onPrimary = Color(0xFF07301A)
-    val accent = Color(0xFF8C6BFF)
-    val accentLip = Color(0xFF5634D6)
+    val accent = Color(0xFF2F8CFF)
+    val accentLip = Color(0xFF1A5DB8)
     val pink = Color(0xFFFF5FA2)
     val cyan = Color(0xFF3DD6F5)
     val star = Color(0xFFFFC53D)
@@ -46,8 +46,8 @@ object MuColors {
 
     /** Gradient pairs for generated song covers and feature tiles. */
     val covers = listOf(
-        Color(0xFFFF5FA2) to Color(0xFF8C6BFF), Color(0xFF3DD6F5) to Color(0xFF5634D6), Color(0xFFFFC53D) to Color(0xFFFF5C7A),
-        Color(0xFF3BE37A) to Color(0xFF1E8FD8), Color(0xFFFF8A3D) to Color(0xFFB0306B), Color(0xFFB06BFF) to Color(0xFF2B2360),
+        Color(0xFF3BE37A) to Color(0xFF0F6B3A), Color(0xFF3DD6F5) to Color(0xFF0E4F8A), Color(0xFFFFC53D) to Color(0xFFD9541E),
+        Color(0xFFFF5C7A) to Color(0xFF8A1C33), Color(0xFF2F8CFF) to Color(0xFF0B2E66), Color(0xFFFF8A3D) to Color(0xFF7A2E0B),
     )
 }
 

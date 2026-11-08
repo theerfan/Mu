@@ -113,7 +113,7 @@ fun CalibrationScreen(hasMic: Boolean, requestMic: () -> Unit, onBack: () -> Uni
             if (error != null) Banner(error, MuColors.wrong)
             // Current route summary
             val lb = remember(version, route) { store.loopback(route) }; val tap = remember(version, route) { store.tap(route) }
-            MuCard(Modifier.fillMaxWidth(), brush = Brush.linearGradient(listOf(Color(0xFF3B2A8F), Color(0xFF1E1842)))) {
+            MuCard(Modifier.fillMaxWidth(), brush = Brush.linearGradient(listOf(Color(0xFF1F2124), Color(0xFF111214)))) {
                 Text("OUTPUT", style = OverlineStyle.copy(color = MuColors.textDim))
                 Text(route.label, style = MaterialTheme.typography.headlineSmall, color = MuColors.text)
                 Spacer(Modifier.height(4.dp))

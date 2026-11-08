@@ -171,12 +171,14 @@ private fun PlayContent(song: Song, songId: String, onBack: () -> Unit, onCalibr
     when (phase) {
         Phase.SETUP -> Setup(song, progress.best(songId), speed, { speed = it }, clickThrough, { clickThrough = it }, ready, error,
             speakerTip = clickThrough && route == AudioRoute.SPEAKER, calibrated = calibrated, routeLabel = route.label,
-            onBack = onBack, onCalibrate = onCalibrate, onStart = { start() }) {
+            onBack = onBack, onCalibrate = onCalibrate, onStart = { start() },
+            overview = { SongMinimap(song, times, -1.0, song.endTime / speed, emptyMap(), it) }) {
             Highway(song, speed.toDouble(), times, beats, barEvery, (times.firstOrNull() ?: 0.0) - 0.15, emptyMap(), it)
         }
         Phase.PLAYING -> {
             KeepScreenOn()
-            Playing(song, speed, songTime, score, streak, last, onStop = { stopRequested = true }) {
+            Playing(song, speed, songTime, score, streak, last, onStop = { stopRequested = true },
+                minimap = { SongMinimap(song, times, songTime, song.endTime / speed, judged, it) }) {
                 Highway(song, speed.toDouble(), times, beats, barEvery, songTime, judged, it)
             }
         }
@@ -190,7 +192,8 @@ private fun PlayContent(song: Song, songId: String, onBack: () -> Unit, onCalibr
 private fun Setup(
     song: Song, best: ProgressStore.Best?, speed: Float, onSpeed: (Float) -> Unit, clickThrough: Boolean, onClick: (Boolean) -> Unit,
     ready: Boolean, error: String?, speakerTip: Boolean, calibrated: Boolean, routeLabel: String,
-    onBack: () -> Unit, onCalibrate: () -> Unit, onStart: () -> Unit, preview: @Composable (Modifier) -> Unit,
+    onBack: () -> Unit, onCalibrate: () -> Unit, onStart: () -> Unit, overview: @Composable (Modifier) -> Unit,
+    preview: @Composable (Modifier) -> Unit,
 ) {
     MuTopBar("", onBack)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
@@ -216,7 +219,10 @@ private fun Setup(
             Text(if (best != null) "Your best: ${best.pct}%" else "Earn up to 3 stars", color = MuColors.text, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             Text("${song.events.size} notes", color = MuColors.textMuted, fontSize = 13.sp)
         }
-        preview(Modifier.fillMaxWidth().height(210.dp).clip(RoundedCornerShape(24.dp)).border(1.dp, MuColors.stroke, RoundedCornerShape(24.dp)))
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            preview(Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(24.dp)).border(1.dp, MuColors.stroke, RoundedCornerShape(24.dp)))
+            overview(Modifier.fillMaxWidth().height(40.dp))
+        }
 
         MuCard(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -272,22 +278,14 @@ private fun IconBadge(color: Color, content: @Composable () -> Unit) {
 @Composable
 private fun Playing(
     song: Song, speed: Float, songTime: Double, score: Int, streak: Int, last: Judgement?, onStop: () -> Unit,
-    highway: @Composable (Modifier) -> Unit,
+    minimap: @Composable (Modifier) -> Unit, highway: @Composable (Modifier) -> Unit,
 ) {
     val maxScore = 100 * song.events.size
-    val endT = song.endTime / speed
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundIconButton(Icons.Filled.Close, "Stop", onStop, size = 42.dp)
             Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                StarMeter(score.toFloat() / maxOf(maxScore, 1))
-                Spacer(Modifier.height(6.dp))
-                // song position
-                Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x1AFFFFFF))) {
-                    Box(Modifier.fillMaxWidth((songTime / endT).toFloat().coerceIn(0f, 1f)).height(4.dp).background(MuColors.textDim))
-                }
-            }
+            Column(Modifier.weight(1f)) { StarMeter(score.toFloat() / maxOf(maxScore, 1)) }
             Spacer(Modifier.width(14.dp))
             Column(horizontalAlignment = Alignment.End) {
                 Text("%,d".format(score), color = MuColors.text, fontSize = 24.sp, fontWeight = FontWeight.Black)
@@ -308,12 +306,18 @@ private fun Playing(
                 if (streak >= 2) Pill("$streak streak", MuColors.orange, MuColors.orange.copy(alpha = 0.16f), icon = FlameIcon)
             }
         }
-        // the highway keeps a sensible height and sits centred in whatever room is left (tall in portrait, short in landscape)
+        // the highway keeps a sensible height and sits centred in whatever room is left (tall in portrait, short in
+        // landscape), with the song minimap right under it
         BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(start = 12.dp, end = 12.dp, bottom = 12.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.fillMaxWidth().height(minOf(maxHeight, 440.dp)).clip(RoundedCornerShape(24.dp))
-                .border(1.dp, MuColors.stroke, RoundedCornerShape(24.dp))) {
-                highway(Modifier.fillMaxSize())
-                if (songTime < 0) CountIn(song, speed, songTime)
+            val mapH = if (maxHeight < 300.dp) 30.dp else 44.dp
+            val boardH = minOf(maxHeight - mapH - 8.dp, 440.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.fillMaxWidth().height(boardH).clip(RoundedCornerShape(24.dp))
+                    .border(1.dp, MuColors.stroke, RoundedCornerShape(24.dp))) {
+                    highway(Modifier.fillMaxSize())
+                    if (songTime < 0) CountIn(song, speed, songTime)
+                }
+                minimap(Modifier.fillMaxWidth().height(mapH))
             }
         }
     }
@@ -330,7 +334,7 @@ private fun StarMeter(fraction: Float) {
         }
         for (t in STAR_THRESHOLDS) {
             val lit = fraction >= t
-            Icon(Icons.Filled.Star, null, tint = if (lit) MuColors.star else Color(0xFF5D5590),
+            Icon(Icons.Filled.Star, null, tint = if (lit) MuColors.star else Color(0xFF45484E),
                 modifier = Modifier.size(if (lit) 22.dp else 18.dp).align(Alignment.CenterStart).offset(x = w * t - 11.dp))
         }
     }
@@ -349,7 +353,7 @@ private fun CountIn(song: Song, speed: Float, songTime: Double) {
     val beatSec = 60.0 / song.tempoMap.first().bpm / speed
     val n = ceil(-songTime / beatSec).toInt()
     val frac = ((-songTime / beatSec) - (n - 1)).toFloat().coerceIn(0f, 1f)   // 1 right on the click, → 0
-    Box(Modifier.fillMaxSize().background(Color(0x88070512)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(120.dp).scale(0.85f + 0.3f * frac).clip(CircleShape)
                 .background(Brush.radialGradient(listOf(MuColors.accent, MuColors.accentLip))), contentAlignment = Alignment.Center) {
@@ -441,7 +445,7 @@ private fun BigStars(earned: Int) {
             }
             val lit = i < earned
             val sz = if (i == 1) 92.dp else 70.dp
-            Icon(Icons.Filled.Star, null, tint = if (lit) MuColors.star else Color(0xFF3A3466),
+            Icon(Icons.Filled.Star, null, tint = if (lit) MuColors.star else Color(0xFF2A2C30),
                 modifier = Modifier.padding(bottom = if (i == 1) 18.dp else 0.dp).size(sz).scale(if (lit) a.value else 1f))
         }
     }

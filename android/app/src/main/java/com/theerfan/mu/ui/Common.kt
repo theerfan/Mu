@@ -81,10 +81,9 @@ fun MuScreen(modifier: Modifier = Modifier, insets: Boolean = true, content: @Co
 
 fun Modifier.muBackground(): Modifier = drawBehind {
     drawRect(Brush.verticalGradient(listOf(MuColors.bgTop, MuColors.bg), endY = size.height * 0.75f))
-    drawCircle(Brush.radialGradient(listOf(MuColors.accent.copy(alpha = 0.28f), Color.Transparent), Offset(size.width * 0.9f, size.height * 0.05f), size.minDimension * 0.7f),
-        size.minDimension * 0.7f, Offset(size.width * 0.9f, size.height * 0.05f))
-    drawCircle(Brush.radialGradient(listOf(MuColors.pink.copy(alpha = 0.14f), Color.Transparent), Offset(0f, size.height * 0.55f), size.minDimension * 0.6f),
-        size.minDimension * 0.6f, Offset(0f, size.height * 0.55f))
+    // a faint green glow in the corner, nothing more
+    drawCircle(Brush.radialGradient(listOf(MuColors.primary.copy(alpha = 0.07f), Color.Transparent), Offset(size.width * 0.9f, 0f), size.minDimension * 0.8f),
+        size.minDimension * 0.8f, Offset(size.width * 0.9f, 0f))
 }
 
 /** Transparent top bar: round back button, bold title, optional trailing actions. */

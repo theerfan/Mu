@@ -147,7 +147,7 @@ private fun Header(streak: Int, stars: Int, onHelp: () -> Unit) {
 private fun FeaturedCard(e: SongEntry, best: ProgressStore.Best?, resume: Boolean, onPlay: () -> Unit) {
     val song = e.song
     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-        .background(Brush.linearGradient(listOf(Color(0xFF6A3DF0), Color(0xFFB0306B), Color(0xFFFF7A59))))) {
+        .background(Brush.linearGradient(listOf(Color(0xFF1C1E21), Color(0xFF0E2A1A), Color(0xFF125A33))))) {
         // Decorative lanes with a few notes flying in, like a mini highway.
         Canvas(Modifier.matchParentSize()) {
             val laneGap = size.height / 9f

@@ -170,10 +170,10 @@ private fun Headstock(near: Int, inTune: Boolean) {
                 cubicTo(w * 0.12f, h * 0.3f, w * 0.28f, h * 0.6f, w * 0.32f, h)
                 close()
             }
-            drawPath(body, Brush.verticalGradient(listOf(Color(0xFF3A2F78), Color(0xFF241C52))))
+            drawPath(body, Brush.verticalGradient(listOf(Color(0xFF2A2C30), Color(0xFF16171A))))
             drawPath(body, Color(0x33FFFFFF), style = Stroke(2f))
             // nut and strings running to the pegs
-            drawRoundRect(Color(0xFFE9E3FF), Offset(w * 0.3f, h * 0.9f), Size(w * 0.4f, 6f), CornerRadius(3f))
+            drawRoundRect(Color(0xFFE8E8EA), Offset(w * 0.3f, h * 0.9f), Size(w * 0.4f, 6f), CornerRadius(3f))
             for (k in 0 until 6) {
                 val peg = if (k < 3) left.indexOf(k) else right.indexOf(k)
                 val px = if (k < 3) w * 0.2f else w * 0.8f; val py = h * (0.17f + peg * 0.3f)
@@ -182,7 +182,7 @@ private fun Headstock(near: Int, inTune: Boolean) {
                 val col = if (lit) (if (inTune) MuColors.perfect else MuColors.strings[5 - k]) else Color.White.copy(alpha = 0.35f)
                 drawLine(col, Offset(sx, h), Offset(sx, h * 0.9f), strokeWidth = if (lit) 4f else 2f)
                 drawLine(col, Offset(sx, h * 0.9f), Offset(px, py), strokeWidth = if (lit) 4f else 2f)
-                drawCircle(Color(0xFFCFC7F5), 7.dp.toPx(), Offset(px, py))
+                drawCircle(Color(0xFFC9CBD0), 7.dp.toPx(), Offset(px, py))
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) { for (i in right) StringPeg(i, near == i, inTune) }
