@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   native-tests:
     runs-on: ubuntu-latest
@@ -41,22 +45,42 @@ jobs:
         with:
           name: mu-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-      - name: Publish rolling prerelease (latest)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Publish rolling release (android)
+        # Replaced on every build of main: tag "android" moves to this commit, the asset is always mu.apk, and it is a
+        # normal (non-pre) release marked latest, so the repo page's Releases box and
+        # https://github.com/theerfan/Mu/releases/latest/download/mu.apk always point at the newest build.
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk mu-debug.apk
-          gh release delete latest --cleanup-tag -y || true
-          gh release create latest mu-debug.apk --prerelease --target "$GITHUB_SHA" \
-            --title "Mu latest (debug)" \
-            --notes "Auto-built debug APK from commit $GITHUB_SHA on main. Not signed for release."
+          set -euo pipefail
+          ver="0.2.${GITHUB_RUN_NUMBER}"
+          cp android/app/build/outputs/apk/debug/app-debug.apk mu.apk
+          notes="$RUNNER_TEMP/notes.md"
+          printf '%s\n' \
+            "Debug APK of Mu ${ver} (versionCode $((1 + GITHUB_RUN_NUMBER))), built from ${GITHUB_SHA}." \
+            "" \
+            "This release is replaced on every push to main; the file is always \`mu.apk\`, so" \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/mu.apk always gets the newest build." \
+            "Builds share one signing key, so a new APK installs over the old one." > "$notes"
+          gh release delete latest --yes --cleanup-tag || true    # the old rolling prerelease
+          gh release delete android --yes --cleanup-tag || true
+          git push origin :refs/tags/android || true
+          for _ in 1 2 3 4 5 6; do
+            if gh release create android mu.apk --target "$GITHUB_SHA" --title "Mu ${ver}" --notes-file "$notes" --latest; then
+              echo "### Mu ${ver}: https://github.com/${GITHUB_REPOSITORY}/releases/tag/android" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            git push origin :refs/tags/android || true
+            sleep 3
+          done
+          exit 1
       - name: Publish tagged release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk mu-debug.apk
-          gh release create "$GITHUB_REF_NAME" mu-debug.apk --verify-tag \
+          gh release create "$GITHUB_REF_NAME" mu-debug.apk --verify-tag --latest=false \
             --title "Mu $GITHUB_REF_NAME" \
             --notes "Debug APK built from $GITHUB_REF_NAME ($GITHUB_SHA)."
