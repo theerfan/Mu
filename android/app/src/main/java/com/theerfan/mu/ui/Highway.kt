@@ -7,11 +7,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -80,17 +80,21 @@ private fun chordRoot(name: String?): Int? {
 
 private fun chordFill(name: String?, midi: Int): Color = ChordPalette[chordRoot(name) ?: (midi.mod(12))]
 
-private fun chordLabel(e: SongEvent): String = e.chord ?: Difficulty.chordName(e)
+private fun chordLabel(e: SongEvent): String = Difficulty.chordSymbol(e.chord ?: Difficulty.chordName(e))
 
 /** True when the tab marks an up-strum. Anything else (including a plain chord) is a down-strum. */
 private fun strumUp(e: SongEvent): Boolean = e.techNames.any { it == "strum_up" }
 
-private fun Color.lighten(by: Float) = Color(
-    red + (1f - red) * by, green + (1f - green) * by, blue + (1f - blue) * by, alpha,
+/** Brighter, still saturated. Mixing toward white washes the chord color out. */
+private fun Color.brighten(by: Float) = Color(
+    (red * (1f + by)).coerceAtMost(1f),
+    (green * (1f + by)).coerceAtMost(1f),
+    (blue * (1f + by)).coerceAtMost(1f),
+    alpha,
 )
 private fun Color.darken(by: Float) = Color(red * (1f - by), green * (1f - by), blue * (1f - by), alpha)
 
-/** One chord on the highway: a slab that covers only the strings it uses. */
+/** One chord on the highway: a solid slab across the board, chevrons fading along the strum. */
 private class ChordMark(
     val index: Int,
     val x0: Float, val x1: Float,
@@ -107,10 +111,10 @@ const val HIGHWAY_LOOKAHEAD_SEC = 2.2f
 
 /**
  * Face-on fretboard. Notes scroll right to left toward a playhead about a third of the way in. A single note is a
- * fret-coloured bar along its string, from the attack to the end of the note, number on the head. A chord is a slab
- * that sits on the strings it uses (the rest of the board stays visible), filled with chevrons that point the strum:
- * down toward the low strings, up toward the high ones. The shape itself floats above the board as a fret diagram.
- * A white ball rides a dotted pitch arc from note to note (the arc hops over chord blocks). Hits flash, misses fade.
+ * fret-coloured bar along its string, from the attack to the end of the note, number on the head. A chord is a solid
+ * block across the board in the chord's color. Lighter bands of that same color run in a shallow chevron and fade
+ * along the strum (down toward the low strings, up toward the high ones). The shape floats above the board as a fret diagram. A white ball
+ * rides a dotted pitch arc from note to note (the arc hops over chord blocks). Hits flash, misses fade.
  * Text layouts are measured once and cached.
  *
  * String 1 (high e) is the top string, as in tab. Chord diagrams use the same order.
@@ -138,11 +142,11 @@ fun Highway(
     val cardTitle = remember(song, measurer) {
         song.events.map { e ->
             if (e.notes.size < 2) null
-            else measurer.measure(chordLabel(e), TextStyle(color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold))
+            else measurer.measure(chordLabel(e), TextStyle(color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold))
         }
     }
     val fretNums = remember(measurer) {
-        val style = TextStyle(color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+        val style = TextStyle(color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         (1..15).associateWith { measurer.measure(it.toString(), style) }
     }
     val strings = song.stringCount
@@ -155,15 +159,14 @@ fun Highway(
         val w = size.width
         val h = size.height
         val bottomGap = 8.dp.toPx()
-        val minTop = 52.dp.toPx()
-        // The board is the main band of the screen: tall enough that the six strings are easy to read.
-        val cap = h * 0.70f
-        val floor = minOf(strings * 34.dp.toPx(), cap)
-        var boardH = (h * 0.62f).coerceIn(floor, cap)
+        // Leave the top of the lime for the combo, the score, the tempo slider, and a real chord diagram.
+        val minTop = 176.dp.toPx().coerceAtMost(h * 0.48f)
+        val floor = minOf(strings * 24.dp.toPx(), h * 0.62f)
+        var boardH = (h - bottomGap - minTop).coerceIn(floor, h * 0.62f)
         var boardTop = h - bottomGap - boardH
         if (boardTop < minTop) {
-            boardTop = minTop.coerceAtMost(h * 0.36f)
-            boardH = (h - bottomGap - boardTop).coerceAtLeast(minOf(strings * 22.dp.toPx(), h * 0.5f))
+            boardTop = minTop
+            boardH = (h - bottomGap - boardTop).coerceAtLeast(minOf(strings * 20.dp.toPx(), h * 0.42f))
         }
         val boardBottom = boardTop + boardH
         val inset = boardH * 0.09f
@@ -192,17 +195,14 @@ fun Highway(
             if (e.notes.size >= 2) {
                 val dur = e.dur / speed
                 val gap = times.getOrElse(i + 1) { times[i] + dur } - times[i]
-                val span = maxOf(dur, 0.12).let { if (gap > 0.05) minOf(it, gap * 0.96) else it }
+                val span = maxOf(dur, 0.12).let { if (gap > 0.05) minOf(it, gap * 0.99) else it }
                 val x0 = u(times[i])
                 val x1 = u(times[i] + span)
                 val pastEnd = (songTime - (times[i] + span)).toFloat()
                 val fade = if (pastEnd <= 0f) 1f else (1f - pastEnd / 0.35f).coerceIn(0f, 1f)
                 if (fade > 0.03f && x1 > 0f && x0 < w) {
-                    val topString = e.notes.minOf { it.string }
-                    val botString = e.notes.maxOf { it.string }
-                    val pad = spacing * 0.48f
-                    val yTop = (sy(topString) - pad).coerceAtLeast(boardTop + 3.dp.toPx())
-                    val yBot = (sy(botString) + pad).coerceAtMost(boardBottom - 3.dp.toPx())
+                    val yTop = boardTop
+                    val yBot = boardBottom
                     val j = judged[i]
                     val fill = when (j?.kind) {
                         Kind.WRONG -> MuColors.wrong
@@ -239,8 +239,7 @@ fun Highway(
             drawLine(Color.White.copy(alpha = 0.94f), Offset(0f, y), Offset(w, y), thick)
         }
 
-        // The slab covers only the strings in the chord, so the rest of the board stays visible. Strings are
-        // redrawn across it so the block reads as sitting on them.
+        // Solid slabs first, then the strings again so they stay visible across the color.
         for (c in chords) drawChordSlab(c, nowU)
         for (s in 1..strings) {
             val y = sy(s)
@@ -319,11 +318,14 @@ fun Highway(
     }
 }
 
-/** Parallelogram sitting on the strings: the top edge leans right, like the slab is lying on the board. */
+/** How far the top edge shifts right. The slab reads as lying on the board. */
+private fun ChordMark.shear(): Float = (yBot - yTop).coerceAtLeast(1f) * 0.055f
+
+/** Parallelogram across the board: the top edge leans right. */
 private fun ChordMark.face(): Path {
     val h = (yBot - yTop).coerceAtLeast(1f)
-    val shear = h * 0.18f
-    val taper = minOf(h * 0.05f, (x1 - x0) * 0.06f)
+    val shear = shear()
+    val taper = minOf(h * 0.035f, (x1 - x0) * 0.05f)
     return Path().apply {
         moveTo(x0, yBot)
         lineTo(x1, yBot)
@@ -335,9 +337,8 @@ private fun ChordMark.face(): Path {
 
 private fun DrawScope.drawChordSlab(c: ChordMark, nowU: Float) {
     val face = c.face()
-    val h = (c.yBot - c.yTop).coerceAtLeast(1f)
-    val shear = h * 0.18f
-    val depth = 3.5.dp.toPx()
+    val shear = c.shear()
+    val depth = 2.5.dp.toPx()
     val side = Path().apply {
         moveTo(c.x0, c.yBot)
         lineTo(c.x0 + shear, c.yTop)
@@ -345,70 +346,99 @@ private fun DrawScope.drawChordSlab(c: ChordMark, nowU: Float) {
         lineTo(c.x0 - depth, c.yBot)
         close()
     }
+    // Down-strums brighten toward the low strings. Up-strums brighten toward the high ones.
+    val deep = c.color.darken(0.10f)
+    val lit = c.color.brighten(0.18f)
+    val (top, bot) = if (c.up) lit to deep else deep to lit
     drawPath(side, c.color.darken(0.22f).copy(alpha = c.fade))
-    drawPath(face, c.color.copy(alpha = c.fade))
+    drawPath(
+        face,
+        Brush.verticalGradient(
+            listOf(top.copy(alpha = c.fade), bot.copy(alpha = c.fade)),
+            startY = c.yTop,
+            endY = c.yBot,
+        ),
+    )
     clipPath(face) {
-        drawStrumChevrons(c.x0 - 4f, c.x1 + shear + 4f, c.yTop, c.yBot, c.up, Color.White.copy(alpha = 0.55f * c.fade))
+        drawStrumTexture(c.x0 - 8f, c.x1 + shear + 8f, c.yTop, c.yBot, c.up, c.color, c.fade)
     }
     val playedTo = nowU.coerceIn(c.x0, c.x1)
     if (playedTo - c.x0 > 1f) {
         clipRect(c.x0 - depth, c.yTop, playedTo, c.yBot) {
-            drawPath(face, Color.Black.copy(alpha = 0.38f * c.fade))
+            drawPath(face, Color.Black.copy(alpha = 0.16f * c.fade))
         }
     }
-    drawLine(
-        Color.White.copy(alpha = 0.40f * c.fade),
-        Offset(c.x0 + shear, c.yTop), Offset(c.x1 + shear, c.yTop), 1.6.dp.toPx(),
-    )
 }
 
-/** Separate chevrons, every one pointing the same way. Down goes toward the low strings. */
-private fun DrawScope.drawStrumChevrons(x0: Float, x1: Float, y0: Float, y1: Float, up: Boolean, color: Color) {
-    val col = 28.dp.toPx()
-    val row = 18.dp.toPx()
-    val amp = 6.2.dp.toPx()
-    val half = col * 0.36f
-    val sw = 3.4.dp.toPx()
-    var y = y0 + row * 0.55f
-    var rowIndex = 0
-    while (y < y1 - amp * 0.2f) {
-        val tipY = y + if (up) -amp else amp
-        val wingY = y + if (up) amp * 0.15f else -amp * 0.15f
-        var x = x0 + if (rowIndex % 2 == 0) col * 0.35f else col * 0.85f
-        while (x < x1) {
-            drawLine(color, Offset(x - half, wingY), Offset(x, tipY), sw, cap = StrokeCap.Round)
-            drawLine(color, Offset(x, tipY), Offset(x + half, wingY), sw, cap = StrokeCap.Round)
-            x += col
+/**
+ * Wide chevron bands in a lighter shade of the chord itself. They stack down the block and fade along the strum.
+ * Filled stripes, so the direction reads as a texture rather than a row of drawn arrowheads.
+ */
+private fun DrawScope.drawStrumTexture(
+    x0: Float, x1: Float, y0: Float, y1: Float, up: Boolean, color: Color, fade: Float,
+) {
+    val span = (y1 - y0).coerceAtLeast(1f)
+    val width = (x1 - x0).coerceAtLeast(1f)
+    // A few wide stripes. The ridge has to stand out past the band itself, or the block just looks wavy.
+    val pitch = (span / 4.5f).coerceIn(36.dp.toPx(), 88.dp.toPx())
+    val thick = pitch * 0.34f
+    val period = (pitch * 1.9f).coerceAtMost(width.coerceAtLeast(1f))
+    val amp = minOf(pitch * 0.62f, period * 0.34f)
+    val sign = if (up) -1f else 1f
+    val lit = color.brighten(0.55f)
+    val step = (period / 2f).coerceAtLeast(1f)
+
+    fun ridge(x: Float): Float {
+        val p = ((x - x0) % period) / period
+        val tri = if (p < 0.5f) p * 2f else (1f - p) * 2f
+        return tri * amp * sign
+    }
+
+    var y = y0 - amp - thick
+    while (y < y1 + amp) {
+        val t = (((y + thick * 0.5f) - y0) / span).coerceIn(0f, 1f)
+        val along = if (up) 1f - t else t
+        // Down-strums build toward the low strings, up-strums toward the high ones. The quiet end stays the plain chord color.
+        val strength = along * along * 0.9f * fade
+        if (strength > 0.045f) {
+            val band = Color(
+                red = color.red + (lit.red - color.red) * strength,
+                green = color.green + (lit.green - color.green) * strength,
+                blue = color.blue + (lit.blue - color.blue) * strength,
+                alpha = fade,
+            )
+            val xs = ArrayList<Float>(8)
+            xs.add(x0)
+            var x = x0
+            while (x + step < x1 - 0.5f) {
+                x += step
+                xs.add(x)
+            }
+            xs.add(x1)
+            val path = Path()
+            path.moveTo(xs[0], y + ridge(xs[0]))
+            for (i in 1 until xs.size) path.lineTo(xs[i], y + ridge(xs[i]))
+            for (i in xs.lastIndex downTo 0) path.lineTo(xs[i], y + thick + ridge(xs[i]))
+            path.close()
+            drawPath(path, band)
         }
-        y += row
-        rowIndex++
+        y += pitch
     }
 }
 
 private fun DrawScope.drawChordName(c: ChordMark, layout: TextLayoutResult) {
     val face = c.face()
     val h = (c.yBot - c.yTop).coerceAtLeast(1f)
-    val shear = h * 0.18f
-    val availH = h * 0.72f
-    val availW = (c.x1 - c.x0) * 0.78f
-    val sc = minOf(availH / layout.size.height, availW / layout.size.width).coerceIn(0.45f, 1.15f)
-    // Clear the slanted leading edge so the italic name isn't clipped by it.
-    val tx = c.x0 + shear * 0.72f + 16.dp.toPx()
+    val shear = c.shear()
+    val availH = h * 0.42f
+    val availW = (c.x1 - c.x0) * 0.62f
+    val sc = minOf(availH / layout.size.height, availW / layout.size.width).coerceIn(0.7f, 2.6f)
+    val tx = c.x0 + shear * 0.45f + 18.dp.toPx()
     val ty = (c.yTop + c.yBot) / 2f
-    val shadow = Offset(1.2.dp.toPx(), 1.4.dp.toPx())
-    val labelW = layout.size.width * sc
-    val labelH = layout.size.height * sc
-    val padX = 8.dp.toPx()
-    val padY = 3.dp.toPx()
+    val shadow = Offset(0f, 2.dp.toPx())
     clipPath(face) {
-        drawRoundRect(
-            Color.Black.copy(alpha = 0.28f * c.fade),
-            Offset(tx - padX, ty - labelH / 2f - padY),
-            Size(labelW + padX * 2f, labelH + padY * 2f),
-            CornerRadius(8.dp.toPx()),
-        )
         withTransform({ translate(tx + shadow.x, ty + shadow.y); scale(sc, sc, Offset.Zero) }) {
-            drawText(layout, color = Color.Black.copy(alpha = 0.35f * c.fade), topLeft = Offset(0f, -layout.size.height / 2f))
+            drawText(layout, color = Color.Black.copy(alpha = 0.28f * c.fade), topLeft = Offset(0f, -layout.size.height / 2f))
         }
         withTransform({ translate(tx, ty); scale(sc, sc, Offset.Zero) }) {
             drawText(layout, alpha = c.fade, topLeft = Offset(0f, -layout.size.height / 2f))
@@ -416,29 +446,35 @@ private fun DrawScope.drawChordName(c: ChordMark, layout: TextLayoutResult) {
     }
 }
 
+private val CardNavy = Color(0xFF2B4A9D)
+private val CardGrid = Color(0xFF2A3246)
+private val CardGridLine = Color(0xFF585A5F)
+
 /**
  * Up to two shape cards in the lime above the board: the chord you're on (or about to play) and the next one.
- * Each card is a small tab of the real notes — open rings, muted crosses, fret-coloured dots.
+ * Navy card, name on its own row, dark fretboard inset, open rings and mutes left of a white nut.
  */
 private fun DrawScope.drawChordCards(
     chords: List<ChordMark>, songTime: Double, times: DoubleArray, stringCount: Int,
     titles: List<TextLayoutResult?>, frets: Map<Int, TextLayoutResult>, boardTop: Float, nowU: Float,
 ) {
-    if (boardTop < 78.dp.toPx() || chords.isEmpty()) return
+    if (boardTop < 88.dp.toPx() || chords.isEmpty()) return
     val upcoming = chords.filter { c ->
         val start = times[c.index]
         start < songTime + HIGHWAY_LOOKAHEAD_SEC + 0.15 && c.x1 > nowU - 40f
     }.take(2)
     if (upcoming.isEmpty()) return
-    // Leave the top of the lime for the count-in and the score. Cards sit just above the board.
-    val reservedTop = 52.dp.toPx()
-    val aboveBoard = 6.dp.toPx()
-    val cardH = (boardTop - reservedTop - aboveBoard).coerceIn(70.dp.toPx(), 108.dp.toPx())
-    val cardTop = (boardTop - aboveBoard - cardH).coerceAtLeast(reservedTop * 0.55f)
-    val cardW = cardH * 1.42f
-    val safeL = 96.dp.toPx()
-    val safeR = size.width - 74.dp.toPx()
-    val gap = 8.dp.toPx()
+    // Clear the combo badge, the score, and the tempo slider. Cards fill the rest of the lime.
+    val reservedTop = 62.dp.toPx()
+    val aboveBoard = 8.dp.toPx()
+    val avail = boardTop - reservedTop - aboveBoard
+    if (avail < 64.dp.toPx()) return
+    val cardH = avail.coerceAtMost(168.dp.toPx())
+    val cardTop = boardTop - aboveBoard - cardH
+    val cardW = cardH * 1.34f
+    val safeL = 12.dp.toPx()
+    val safeR = size.width - 12.dp.toPx()
+    val gap = 10.dp.toPx()
     var prevRight = safeL - gap
     for (c in upcoming) {
         var x = c.x0.coerceIn(safeL, (safeR - cardW).coerceAtLeast(safeL))
@@ -454,80 +490,87 @@ private fun DrawScope.drawChordCard(
     c: ChordMark, title: TextLayoutResult?, stringCount: Int, frets: Map<Int, TextLayoutResult>,
     left: Float, top: Float, cw: Float, ch: Float,
 ) {
-    val r = CornerRadius(12.dp.toPx())
-    drawRoundRect(Color.Black.copy(alpha = 0.22f * c.fade), Offset(left, top + 3.dp.toPx()), Size(cw, ch), r)
-    drawRoundRect(Color(0xFF2C4E78).copy(alpha = c.fade), Offset(left, top), Size(cw, ch), r)
-    val border = when {
-        c.color == MuColors.wrong -> MuColors.wrong
-        c.color == MissNote -> Color.White.copy(alpha = 0.35f)
-        else -> Color.White.copy(alpha = 0.16f)
+    val r = CornerRadius(16.dp.toPx())
+    drawRoundRect(Color.Black.copy(alpha = 0.20f * c.fade), Offset(left, top + 3.dp.toPx()), Size(cw, ch), r)
+    drawRoundRect(CardNavy.copy(alpha = c.fade), Offset(left, top), Size(cw, ch), r)
+    if (c.color == MuColors.wrong || c.color == MissNote) {
+        val border = if (c.color == MuColors.wrong) MuColors.wrong else Color.White.copy(alpha = 0.45f)
+        drawRoundRect(border.copy(alpha = border.alpha * c.fade), Offset(left, top), Size(cw, ch), r, style = Stroke(2.dp.toPx()))
     }
-    drawRoundRect(border.copy(alpha = border.alpha * c.fade), Offset(left, top), Size(cw, ch), r, style = Stroke(1.4.dp.toPx()))
 
-    val namePad = 7.dp.toPx()
-    val nameH = title?.size?.height?.toFloat() ?: 0f
+    val pad = 8.dp.toPx()
+    val nameH = title?.size?.height?.toFloat() ?: 16.dp.toPx()
     if (title != null) {
-        val maxW = cw - namePad * 2f
+        val maxW = cw - pad * 2f
         val sc = (maxW / title.size.width).coerceAtMost(1f)
-        val nameX = left + namePad
-        val nameY = top + 5.dp.toPx()
-        withTransform({ translate(nameX, nameY); scale(sc, sc, Offset.Zero) }) {
+        val nameY = top + 6.dp.toPx()
+        withTransform({ translate(left + pad, nameY); scale(sc, sc, Offset.Zero) }) {
             drawText(title, alpha = c.fade)
         }
     }
 
-    // The name has its own row. Open rings and mute marks live in the gutter under it, left of the nut.
-    val gutter = 13.dp.toPx()
-    val numH = 12.dp.toPx()
-    val gridLeft = left + namePad + gutter
-    val gridRight = left + cw - namePad
-    val gridTop = top + 5.dp.toPx() + nameH + 5.dp.toPx()
-    val gridBot = top + ch - 5.dp.toPx() - numH
-    if (gridBot - gridTop < 8f || gridRight - gridLeft < 8f) return
+    val gutter = 16.dp.toPx()
+    val numH = 14.dp.toPx()
+    val gridTop = top + 6.dp.toPx() + nameH + 4.dp.toPx()
+    val gridBot = top + ch - 6.dp.toPx() - numH
+    val nutX = left + pad + gutter
+    val gridRight = left + cw - pad
+    if (gridBot - gridTop < 16f || gridRight - nutX < 20f) return
+
+    val gridR = CornerRadius(4.dp.toPx())
+    drawRoundRect(CardGrid.copy(alpha = c.fade), Offset(nutX, gridTop), Size(gridRight - nutX, gridBot - gridTop), gridR)
 
     val fretCount = 5
     val maxFret = c.notes.maxOf { it.fret }
     val hasOpen = c.notes.any { it.fret == 0 }
     val minPositive = c.notes.filter { it.fret > 0 }.minOfOrNull { it.fret } ?: 1
     val startFret = if (hasOpen || maxFret <= fretCount) 1 else minPositive
-    val colW = (gridRight - gridLeft) / fretCount
+    val colW = (gridRight - nutX) / fretCount
     val rowSpan = (stringCount - 1).coerceAtLeast(1)
-    fun stringY(s: Int) = gridTop + (s - 1) * (gridBot - gridTop) / rowSpan
+    val insetY = (gridBot - gridTop) * 0.06f
+    fun stringY(s: Int) = gridTop + insetY + (s - 1) * (gridBot - gridTop - 2f * insetY) / rowSpan
 
+    val line = CardGridLine.copy(alpha = c.fade)
     for (s in 1..stringCount) {
         val y = stringY(s)
-        drawLine(Color.White.copy(alpha = 0.88f * c.fade), Offset(gridLeft, y), Offset(gridRight, y), 1.15.dp.toPx())
+        drawLine(line, Offset(nutX, y), Offset(gridRight, y), 1.35.dp.toPx(), cap = StrokeCap.Butt)
     }
     for (f in 0..fretCount) {
-        val x = gridLeft + f * colW
+        val x = nutX + f * colW
         val nut = f == 0 && startFret == 1
         drawLine(
-            Color.White.copy(alpha = (if (nut) 0.95f else 0.55f) * c.fade),
+            if (nut) Color.White.copy(alpha = c.fade) else line,
             Offset(x, gridTop), Offset(x, gridBot),
-            if (nut) 2.6.dp.toPx() else 1.05.dp.toPx(),
+            if (nut) 3.2.dp.toPx() else 1.2.dp.toPx(),
+            cap = StrokeCap.Butt,
         )
     }
     for (f in 0 until fretCount) {
         val label = frets[startFret + f] ?: continue
-        val cx = gridLeft + (f + 0.5f) * colW
-        drawText(label, alpha = 0.9f * c.fade, topLeft = Offset(cx - label.size.width / 2f, gridBot + 1.5.dp.toPx()))
+        val cx = nutX + (f + 0.5f) * colW
+        val sc = (numH / label.size.height).coerceIn(0.8f, 1.15f)
+        val numY = gridBot + 2.dp.toPx()
+        withTransform({ translate(cx, numY); scale(sc, sc, Offset.Zero) }) {
+            drawText(label, alpha = 0.95f * c.fade, topLeft = Offset(-label.size.width / 2f, 0f))
+        }
     }
 
     val played = c.notes.associateBy { it.string }
-    val dotR = minOf(colW, (gridBot - gridTop) / rowSpan) * 0.30f
-    val markR = minOf(5.dp.toPx(), dotR)
+    val stringGap = (gridBot - gridTop - 2f * insetY) / rowSpan
+    val dotR = minOf(colW * 0.42f, stringGap * 0.52f).coerceAtLeast(4.dp.toPx())
+    val markR = minOf(gutter * 0.32f, dotR * 0.72f)
     for (s in 1..stringCount) {
         val y = stringY(s)
         val n = played[s]
-        val mx = gridLeft - gutter * 0.55f
+        val mx = nutX - gutter * 0.58f
         when {
             n == null -> drawMutedMark(mx, y, markR, c.fade)
             n.fret == 0 -> drawOpenMark(mx, y, markR, c.fade)
             else -> {
                 val col = n.fret - startFret
                 if (col in 0 until fretCount) {
-                    val cx = gridLeft + (col + 0.5f) * colW
-                    drawCircle(Color.Black.copy(alpha = 0.28f * c.fade), dotR, Offset(cx, y + 1.dp.toPx()))
+                    val cx = nutX + (col + 0.5f) * colW
+                    drawCircle(Color.Black.copy(alpha = 0.30f * c.fade), dotR, Offset(cx + 0.6.dp.toPx(), y + 1.1.dp.toPx()))
                     drawCircle(fretColor(n.fret).copy(alpha = c.fade), dotR, Offset(cx, y))
                 }
             }
