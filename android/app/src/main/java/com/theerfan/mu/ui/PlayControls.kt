@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -39,9 +40,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -74,59 +79,109 @@ fun PauseGlyph(modifier: Modifier, color: Color) = Canvas(modifier) {
 fun clock(sec: Double): String { val s = sec.coerceAtLeast(0.0).toInt(); return "%d:%02d".format(s / 60, s % 60) }
 
 /**
- * The song minimap as a scrubber: the white dot on the playhead line can be dragged (or the bar tapped) to move
- * through the song; with a loop set, its two handles can be dragged to resize it. All times here are practice
- * seconds (what the highway shows); [onSeek] / [onLoop] report practice seconds too.
+ * The song minimap as a scrubber. A tap or drag on the bar jumps playback to that moment. The two handles sit on
+ * the start and end of the song; drag them inward to limit the portion that plays (it loops). Drag them back out
+ * to the ends to play the whole song. Times are practice seconds, same as the highway. A null [onLoop] means the
+ * whole song.
  */
 @Composable
 fun ScrubMinimap(
     song: Song, times: DoubleArray, songTime: Double, endTime: Double, judged: Map<Int, Judgement>, loop: ClosedFloatingPointRange<Double>?,
-    onSeek: (Double) -> Unit, onLoop: (ClosedFloatingPointRange<Double>) -> Unit, modifier: Modifier = Modifier,
+    onSeek: (Double) -> Unit, onLoop: (ClosedFloatingPointRange<Double>?) -> Unit, onCommit: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val seek by rememberUpdatedState(onSeek); val setLoop by rememberUpdatedState(onLoop)
+    val commit by rememberUpdatedState(onCommit)
     val curLoop by rememberUpdatedState(loop); val end by rememberUpdatedState(maxOf(endTime, 1.0))
-    var dragging by remember { mutableIntStateOf(0) }   // 0 playhead, 1 loop start, 2 loop end
+    var dragging by remember { mutableIntStateOf(0) }   // 0 playhead, 1 range start, 2 range end
+    var dragTime by remember { mutableStateOf<Double?>(null) }   // playhead follows the finger; the jump happens on release
+    val playhead = dragTime ?: songTime
     Box(modifier) {
-        SongMinimap(song, times, songTime, endTime, judged, Modifier.matchParentSize())
+        SongMinimap(song, times, playhead, endTime, judged, Modifier.matchParentSize())
         Canvas(Modifier.matchParentSize()
-            .pointerInput(Unit) { detectTapGestures { o -> seek((o.x / size.width).coerceIn(0f, 1f) * end) } }
+            .pointerInput(Unit) {
+                detectTapGestures { o ->
+                    val w = size.width.toFloat(); val h = size.height.toFloat()
+                    if (handleAt(o.x, curLoop, w, h, end) == 0) seek(minimapTime(o.x, w, h, end))
+                }
+            }
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { o ->
-                        val l = curLoop
-                        val grab = 16.dp.toPx()
-                        dragging = when {
-                            l != null && abs(o.x - (l.start / end * size.width).toFloat()) < grab -> 1
-                            l != null && abs(o.x - (l.endInclusive / end * size.width).toFloat()) < grab -> 2
-                            else -> 0
-                        }
-                        if (dragging == 0) seek((o.x / size.width).coerceIn(0f, 1f) * end)
+                        val w = size.width.toFloat(); val h = size.height.toFloat()
+                        dragging = handleAt(o.x, curLoop, w, h, end)
+                        if (dragging == 0) dragTime = minimapTime(o.x, w, h, end)
                     },
                     onDrag = { change, _ ->
-                        val t = (change.position.x / size.width).coerceIn(0f, 1f) * end
-                        val l = curLoop
-                        when {
-                            dragging == 1 && l != null -> setLoop(minOf(t, l.endInclusive - 1.0)..l.endInclusive)
-                            dragging == 2 && l != null -> setLoop(l.start..maxOf(t, l.start + 1.0))
-                            else -> seek(t)
+                        val w = size.width.toFloat(); val h = size.height.toFloat()
+                        val t = minimapTime(change.position.x, w, h, end)
+                        val span = curLoop ?: 0.0..end
+                        val minGap = 1.5
+                        when (dragging) {
+                            1 -> setLoop(rangeOrWhole(minOf(t, span.endInclusive - minGap), span.endInclusive, end))
+                            2 -> setLoop(rangeOrWhole(span.start, maxOf(t, span.start + minGap), end))
+                            else -> dragTime = t
                         }
                     },
+                    onDragEnd = {
+                        if (dragging == 1 || dragging == 2) commit()
+                        else dragTime?.let { seek(it) }
+                        dragTime = null
+                        dragging = 0
+                    },
+                    onDragCancel = { dragTime = null; dragging = 0 },
                 )
             }) {
             val w = size.width; val h = size.height
-            loop?.let { l ->
-                val x0 = (l.start / end * w).toFloat(); val x1 = (l.endInclusive / end * w).toFloat()
-                drawRect(MuColors.accent.copy(alpha = 0.22f), Offset(x0, 0f), Size(x1 - x0, h))
-                for (x in listOf(x0, x1)) {
-                    drawRoundRect(MuColors.accent, Offset(x - 3.dp.toPx(), 0f), Size(6.dp.toPx(), h), CornerRadius(3.dp.toPx()))
+            val span = loop ?: 0.0..end
+            val x0 = minimapX(span.start, w, h, end)
+            val x1 = minimapX(span.endInclusive, w, h, end)
+            val limited = span.start > 0.35 || span.endInclusive < end - 0.35
+            if (limited) {
+                val capsule = Path().apply {
+                    addRoundRect(RoundRect(0f, 0f, w, h, CornerRadius(h / 2f, h / 2f)))
+                }
+                clipPath(capsule) {
+                    if (x0 > 0f) drawRect(Color.Black.copy(alpha = 0.55f), Offset(0f, 0f), Size(x0, h))
+                    if (x1 < w) drawRect(Color.Black.copy(alpha = 0.55f), Offset(x1, 0f), Size(w - x1, h))
                 }
             }
-            val px = (songTime.coerceIn(0.0, end) / end * w).toFloat()
-            drawCircle(MuColors.primary, 9.dp.toPx(), Offset(px, h / 2))
-            drawCircle(Color.White, 6.dp.toPx(), Offset(px, h / 2))
-            drawCircle(Color.Black.copy(alpha = 0.3f), 9.dp.toPx(), Offset(px, h / 2), style = Stroke(1.dp.toPx()))
+            val knob = h * 0.46f
+            for (x in listOf(x0, x1)) {
+                drawCircle(Color.Black.copy(alpha = 0.35f), knob, Offset(x, h / 2f + 1.2.dp.toPx()))
+                drawCircle(Color.White, knob, Offset(x, h / 2f))
+                drawCircle(PlayLime, knob * 0.42f, Offset(x, h / 2f))
+            }
+            if (playhead >= 0) {
+                val px = minimapX(playhead, w, h, end)
+                drawLine(Color.White, Offset(px, 3.dp.toPx()), Offset(px, h - 3.dp.toPx()), 2.dp.toPx(), StrokeCap.Round)
+            }
         }
     }
+}
+
+/** 1 = start handle, 2 = end handle, 0 = the bar itself. The end handle wins when the two are close. */
+private fun handleAt(x: Float, loop: ClosedFloatingPointRange<Double>?, w: Float, h: Float, end: Double): Int {
+    val span = loop ?: 0.0..end
+    val grab = maxOf(h * 0.9f, 28f)
+    val start = minimapX(span.start, w, h, end)
+    val stop = minimapX(span.endInclusive, w, h, end)
+    val nearStart = abs(x - start) < grab
+    val nearEnd = abs(x - stop) < grab
+    return when {
+        nearStart && nearEnd -> if (abs(x - stop) <= abs(x - start)) 2 else 1
+        nearEnd -> 2
+        nearStart -> 1
+        else -> 0
+    }
+}
+
+/** Null when the handles are back at the two ends, so the whole song plays. */
+private fun rangeOrWhole(start: Double, end: Double, songEnd: Double): ClosedFloatingPointRange<Double>? {
+    val a = start.coerceIn(0.0, songEnd)
+    val b = end.coerceIn(0.0, songEnd)
+    if (a <= 0.4 && b >= songEnd - 0.4) return null
+    return a..b
 }
 
 /**
@@ -175,8 +230,8 @@ fun PausePanel(
                 onLoop(sec.start..sec.end)
             }
         }
-        Text(if (loop == null) "Tap the minimap or drag its dot to move through the song." else
-            "Looping ${clock(loop.start)}–${clock(loop.endInclusive)}. Drag the blue handles on the minimap to change it.",
+        Text(if (loop == null) "Tap the bar to skip through the song. Drag the handles at each end to play only that part." else
+            "Looping ${clock(loop.start)}–${clock(loop.endInclusive)}. Drag the handles on the bar to change it.",
             color = MuColors.textMuted, fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextAction("Restart", Icons.Filled.Refresh, onRestart)
@@ -229,32 +284,48 @@ fun TempoNudge(speed: Float, onSpeed: (Float) -> Unit) {
 }
 
 
-val AirCalm = Color(0xFF1E2C3D)      // dusk blue: nothing going on yet
-private val AirGood = Color(0xFF1E8C5A)
-private val AirBad = Color(0xFF7C2535)
+/** Lime field behind the fretboard, the same green as the play-screen design. */
+val PlayLime = Color(0xFF98D63C)
+private val PlayLimeTop = Color(0xFFA8E252)
+private val PlayLimeBottom = Color(0xFF8FCF34)
 
 /**
- * The sky behind the fretboard, telling you how it's going: calm blue, greener as your streak grows, flushed red
- * after misses. Soft motes drift up through it, livelier when you're playing well. [t] drives the motion (song time),
- * so it stands still while paused.
+ * Bright lime field with soft vertical bands and drifting sparkles. [t] drives the motion (song time), so the
+ * sparkles stand still while paused. [streak] and [struggle] are kept so callers can pass play state; the field
+ * stays this green.
  */
 @Composable
 fun AirBackground(streak: Int, struggle: Float, t: Double, modifier: Modifier = Modifier) {
-    val good = (streak / 16f).coerceIn(0f, 1f)
-    val bad = (struggle * 0.8f).coerceIn(0f, 0.75f)
-    val target = androidx.compose.ui.graphics.lerp(androidx.compose.ui.graphics.lerp(AirCalm, AirGood, good), AirBad, bad)
-    val air by androidx.compose.animation.animateColorAsState(target, androidx.compose.animation.core.tween(600), label = "air")
-    val lively by androidx.compose.animation.core.animateFloatAsState(0.35f + 0.65f * good, label = "lively")
     Canvas(modifier) {
-        drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.lerp(air, Color.White, 0.12f), air,
-            androidx.compose.ui.graphics.lerp(air, Color.Black, 0.35f))))
-        val w = size.width; val h = size.height
-        for (i in 0 until 46) {
-            // deterministic pseudo-random per mote: position, size, drift speed
-            val r1 = ((i * 0.6180339f) % 1f); val r2 = ((i * 0.3819660f + 0.17f) % 1f); val r3 = ((i * 0.7548776f + 0.31f) % 1f)
-            val x = ((r1 + (t * 0.004 * (0.5 + r3)).toFloat()) % 1f) * w
-            val y = (1f - ((r2 + (t * 0.03 * (0.4 + r3)).toFloat()) % 1f)) * h * 0.85f
-            drawCircle(Color.White.copy(alpha = (0.08f + 0.3f * r3) * lively), (1.2f + 2.2f * r3).dp.toPx(), Offset(x, y))
+        drawRect(Brush.verticalGradient(listOf(PlayLimeTop, PlayLime, PlayLimeBottom)))
+        val w = size.width
+        val h = size.height
+        val bands = 5
+        val bw = w / bands
+        for (i in 0 until bands) {
+            val band = if (i % 2 == 0) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.04f)
+            drawRect(band, Offset(i * bw, 0f), Size(bw, h))
+        }
+        drawCircle(
+            Brush.radialGradient(listOf(Color.White.copy(alpha = 0.16f), Color.Transparent), Offset(w * 0.5f, h * 0.18f), w * 0.4f),
+            w * 0.4f, Offset(w * 0.5f, h * 0.18f),
+        )
+        val twinkle = 0.85f + 0.15f * ((streak * 0.01f) - struggle * 0.02f).coerceIn(-0.1f, 0.15f)
+        for (i in 0 until 54) {
+            val r1 = (i * 0.6180339f) % 1f
+            val r2 = (i * 0.3819660f + 0.17f) % 1f
+            val r3 = (i * 0.7548776f + 0.31f) % 1f
+            val x = ((r1 + (t * 0.003 * (0.4 + r3)).toFloat()) % 1f) * w
+            val y = (1f - ((r2 + (t * 0.018 * (0.35 + r3)).toFloat()) % 1f)) * h
+            val rad = (1.0f + 2.3f * r3).dp.toPx()
+            val alpha = (0.18f + 0.55f * r3) * twinkle
+            drawCircle(Color.White.copy(alpha = alpha), rad, Offset(x, y))
+            if (i % 6 == 0) {
+                val arm = rad * 2.6f
+                val sw = rad * 0.32f
+                drawLine(Color.White.copy(alpha = alpha), Offset(x - arm, y), Offset(x + arm, y), sw, StrokeCap.Round)
+                drawLine(Color.White.copy(alpha = alpha), Offset(x, y - arm), Offset(x, y + arm), sw, StrokeCap.Round)
+            }
         }
     }
 }
