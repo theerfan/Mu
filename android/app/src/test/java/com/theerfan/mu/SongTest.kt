@@ -67,4 +67,17 @@ class SongTest {
         assertEquals(s.events.sumOf { it.notes.size }, e.midis.size)
         assertEquals(2, Timing.firstAtOrAfter(doubleArrayOf(0.0, 1.0, 2.0, 3.0), 1.5))
     }
+
+    @Test fun clicksFromMidSong() {
+        val s = SongParser.parse(File(samples, "chord_etude.json").readText())   // 80 bpm, 4/4: beat 0.75 s
+        val c = Timing.clicksFrom(s, 1.0, 6.1, 4, throughSong = true)
+        // first beat at/after 6.1 is 6.75; count-in on 3.75, 4.5, 5.25, 6.0, then the grid
+        assertEquals(listOf(3.75, 4.5, 5.25, 6.0, 6.75), c.times.take(5).map { Math.round(it * 1000) / 1000.0 })
+        assertEquals(listOf(true, false, false, false), c.accents.take(4).toList())
+        assertTrue(c.accents[4].not() && c.accents[c.times.indexOfFirst { it > 8.9 }])   // 6.75 is beat 9 (mid-bar); 9.0 is bar 4's downbeat
+        assertEquals(6.1 - 3.75 + 0.3, c.leadInSec, 1e-9)
+        // from the top it matches the old count-in
+        val z = Timing.clicksFrom(s, 0.5, 0.0, 4, throughSong = false)
+        assertEquals(listOf(-6.0, -4.5, -3.0, -1.5), z.times.toList()); assertEquals(6.3, z.leadInSec, 1e-9)
+    }
 }

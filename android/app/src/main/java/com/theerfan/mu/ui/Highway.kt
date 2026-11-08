@@ -38,13 +38,21 @@ fun judgementColor(j: Judgement): Color = when (j.kind) {
     Kind.EXTRA -> MuColors.miss
 }
 
-private val BoardFar = Color(0xFF1C1D20)
-private val BoardNear = Color(0xFF0E0F11)
-private val BoardEdge = Color(0xFF060607)
-private val FretWire = Color(0xFF8E9299)
-private val PlainString = Color(0xFFD7D9DE)
-private val WoundString = Color(0xFFC9A46A)
-private val NoteText = Color(0xFF111214)
+// A real fingerboard: dark rosewood, nickel fret wires, plain steel and bronze-wound strings. All flat, solid colours.
+private val Board = Color(0xFF2B231E)
+private val BoardPlayed = Color(0xFF221C18)
+private val BoardEdge = Color(0xFF16110E)
+private val BeatLine = Color(0xFF3A302A)
+private val FretWire = Color(0xFF9EA3AA)
+private val PlainString = Color(0xFFD9DCE0)
+private val WoundString = Color(0xFFB98D55)
+private val MissNote = Color(0xFF4A4D55)
+
+/** Note colours by fret (≈ which finger): open strings grey, then a fixed colour per fret, repeating from 6. */
+private val FretColors = listOf(
+    Color(0xFF7A8090), Color(0xFFF08A1C), Color(0xFFA334E0), Color(0xFF1F9BE0), Color(0xFFE23A55), Color(0xFF22A863),
+)
+fun fretColor(fret: Int): Color = if (fret <= 0) FretColors[0] else FretColors[1 + (fret - 1) % (FretColors.size - 1)]
 
 /** Seconds of look-ahead the highway aims for (also used by the minimap's view window). */
 const val HIGHWAY_LOOKAHEAD_SEC = 2.2f
@@ -66,7 +74,7 @@ fun Highway(
     val measurer = rememberTextMeasurer()
     val fretText = remember(measurer) {
         HashMap<Int, TextLayoutResult>().also { m ->
-            for (f in 0..30) m[f] = measurer.measure(f.toString(), TextStyle(color = NoteText, fontSize = 17.sp, fontWeight = FontWeight.Black))
+            for (f in 0..30) m[f] = measurer.measure(f.toString(), TextStyle(color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Black))
         }
     }
     val chordText = remember(song, measurer) {
@@ -82,17 +90,17 @@ fun Highway(
     val stringText = remember(song, measurer) {
         (1..strings).map { s ->
             val midi = song.tuning.getOrElse(strings - s) { 40 }
-            measurer.measure(Notes.pcName(midi % 12), TextStyle(color = MuColors.strings[(s - 1) % 6], fontSize = 13.sp, fontWeight = FontWeight.Black))
+            measurer.measure(Notes.pcName(midi % 12), TextStyle(color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Black))
         }
     }
     Canvas(modifier) {
         val w = size.width; val h = size.height
-        drawRect(Brush.verticalGradient(listOf(Color(0xFF0B0C0D), Color.Black)))
-        val labelH = 40.dp.toPx(); val edgeH = 9.dp.toPx(); val room = h - labelH - edgeH - 6.dp.toPx()
-        val depthPx = minOf(room, strings * 50.dp.toPx())
-        val yNear = labelH + depthPx + (room - depthPx) / 2
-        val k = minOf(0.3f, 0.15f * w / depthPx)   // lean of the fret lines (gentler on narrow screens)
-        val a = 0.45f                      // perspective: lanes get closer together towards the far edge
+        // the board sits at the bottom; the space above it is "air" (drawn by the caller) where chord names float
+        val edgeH = 10.dp.toPx(); val chordRoom = 52.dp.toPx()
+        val depthPx = minOf(h - edgeH - chordRoom, strings * 44.dp.toPx()).coerceAtLeast(strings * 18.dp.toPx())
+        val yNear = h - edgeH
+        val k = 0.13f                      // slight lean of the fret lines: the neck is seen nearly face-on
+        val a = 0.18f                      // mild perspective: far strings only a little closer together
         fun depth(v: Float) = depthPx * v * (1 + a) / (1 + a * v)
         fun spacing(v: Float) = depthPx * (1 + a) / ((1 + a * v) * (1 + a * v)) / strings   // local lane spacing
         fun vOf(s: Int) = (strings - s + 0.5f) / strings
@@ -109,100 +117,88 @@ fun Highway(
             moveTo(sx(u0, v0), sy(v0)); lineTo(sx(u1, v0), sy(v0)); lineTo(sx(u1, v1), sy(v1)); lineTo(sx(u0, v1), sy(v1)); close()
         }
 
-        // board: front edge, top face, darker played zone
-        drawRect(BoardEdge, Offset(0f, yNear), Size(w, edgeH))
-        drawLine(Color(0x33FFFFFF), Offset(0f, yNear), Offset(w, yNear), 1.5f)
-        drawPath(quad(0f, w + 10f, 0f, 1f), Brush.verticalGradient(listOf(BoardFar, BoardNear), startY = sy(1f), endY = yNear))
-        drawPath(quad(0f, nowU, 0f, 1f), Color(0x55000000))
+        // board: front edge, top face, the played part a shade darker
+        drawRect(BoardEdge, Offset(0f, yNear), Size(w, h - yNear))
+        drawPath(quad(-w, w * 2, 0f, 1f), Board)
+        drawPath(quad(-w, nowU, 0f, 1f), BoardPlayed)
 
-        // beat lines (thin) and bar lines (fret wires)
+        // beat lines (faint) and bar lines (fret wires)
         var b = Timing.firstAtOrAfter(beatTimes, tMin)
         while (b < beatTimes.size && beatTimes[b] <= tMax) {
             val ub = u(beatTimes[b]); val bar = b % barEvery == 0
-            if (ub > gutter) {
-                if (bar) {
-                    drawLine(FretWire.copy(alpha = 0.55f), Offset(sx(ub, 0f), sy(0f)), Offset(sx(ub, 1f), sy(1f)), 3.5f)
-                    drawLine(Color.White.copy(alpha = 0.25f), Offset(sx(ub, 0f) - 1.5f, sy(0f)), Offset(sx(ub, 1f) - 1.5f, sy(1f)), 1f)
-                } else drawLine(Color(0x16FFFFFF), Offset(sx(ub, 0f), sy(0f)), Offset(sx(ub, 1f), sy(1f)), 1.5f)
-            }
+            if (ub > gutter) drawLine(if (bar) FretWire else BeatLine, Offset(sx(ub, 0f), sy(0f)), Offset(sx(ub, 1f), sy(1f)), if (bar) 3.dp.toPx() else 1.5.dp.toPx())
             b++
         }
-        // strings: wound low strings in bronze, plain ones silver; a coloured name on the left
+        // strings: solid plain steel on top, bronze-wound below; the string's name on the left
         for (s in 1..strings) {
-            val v = vOf(s); val y = sy(v); val thick = (0.9f + (strings - s + 1) * 0.55f) * (spacing(v) / spacing(0.5f))
-            val col = if (s > strings / 2) WoundString else PlainString
-            drawLine(Color.Black.copy(alpha = 0.6f), Offset(sx(gutter, v), y + thick + 1.5f), Offset(w + 40f, y + thick + 1.5f), thick)   // shadow
-            drawLine(col.copy(alpha = 0.8f), Offset(sx(gutter, v), y), Offset(w + 40f, y), thick)
+            val v = vOf(s); val y = sy(v); val thick = (1.6f + (strings - s) * 0.5f).dp.toPx() * (spacing(v) / spacing(0.5f))
+            drawLine(if (s > strings / 2) WoundString else PlainString, Offset(sx(-w, v), y), Offset(w + 40f, y), thick)
             val label = stringText[s - 1]
+            drawRoundRect(BoardEdge, Offset(sx(gutter / 2f, v) - 11.dp.toPx(), y - 10.dp.toPx()), Size(22.dp.toPx(), 20.dp.toPx()), CornerRadius(6.dp.toPx()))
             drawText(label, topLeft = Offset(sx(gutter / 2f, v) - label.size.width / 2f, y - label.size.height / 2f))
         }
-        // timing line: slanted glow + bright core, with a target ring on every string
-        val lineA = Offset(sx(nowU, -0.02f), sy(-0.02f)); val lineB = Offset(sx(nowU, 1.02f), sy(1.02f))
-        drawLine(MuColors.primary.copy(alpha = 0.10f), lineA, lineB, 30.dp.toPx())
-        drawLine(MuColors.primary.copy(alpha = 0.25f), lineA, lineB, 10.dp.toPx())
-        drawLine(Color.White, lineA, lineB, 3.5f)
+        // timing line and a target outline per string
+        drawLine(Color.White, Offset(sx(nowU, -0.03f), sy(-0.03f)), Offset(sx(nowU, 1.03f), sy(1.03f)), 3.dp.toPx())
         val noteW = 34.dp.toPx(); val maxSpacing = spacing(0f)
-        fun noteSize(v: Float) = Size(noteW * (0.75f + 0.25f * spacing(v) / maxSpacing), spacing(v) * 0.66f)
+        fun noteSize(v: Float) = Size(noteW * (0.75f + 0.25f * spacing(v) / maxSpacing), spacing(v) * 0.74f)
         for (s in 1..strings) {
             val v = vOf(s); val ns = noteSize(v)
             skewed(sx(nowU, v), sy(v), k) {
-                drawRoundRect(Color.White.copy(alpha = 0.45f), Offset(-ns.width / 2, -ns.height / 2), ns, CornerRadius(ns.height / 2), style = Stroke(2.5f))
+                drawRoundRect(Color.White.copy(alpha = 0.5f), Offset(-ns.width / 2, -ns.height / 2), ns, CornerRadius(ns.height / 2), style = Stroke(2.dp.toPx()))
             }
         }
 
-        // notes, clipped to the board right of the string names (chord names may rise above it)
-        clipPath(quad(gutter, w + 80f, -0.1f, 1f + labelH / depthPx * 1.5f)) {
+        // notes, clipped to the board right of the string names (chord names float above it)
+        clipPath(quad(gutter, w + 80f, -0.1f, 1f + chordRoom / depthPx)) {
             var i = maxOf(0, Timing.firstAtOrAfter(times, tMin - 4.0))
             while (i < times.size && times[i] <= tMax) {
                 val e = song.events[i]; val ue = u(times[i]); val j = judged[i]
-                // sustain tail: the note's duration at practice speed, cut 10 % before the next event
+                // sustain: the note's duration at practice speed, cut 10 % before the next event
                 val dur = e.dur / speed
                 val gap = times.getOrElse(i + 1) { times[i] + dur } - times[i]
                 val tailW = (minOf(dur, gap * 0.9) * pps).toFloat()
                 if (ue + tailW < gutter - noteW) { i++; continue }
                 val age = (songTime - times[i]).toFloat()          // > 0 once the note has crossed the line
                 val hit = j != null && (j.kind == Kind.HIT || j.kind == Kind.PARTIAL)
-                val fade = if (ue < nowU) (0.25f + 0.75f * ((ue - gutter) / (nowU - gutter)).coerceIn(0f, 1f)) else 1f
+                val bad = j != null && (j.kind == Kind.MISS || j.kind == Kind.WRONG)
                 if (e.notes.size >= 2) {
                     val vs = e.notes.map { vOf(it.string) }
-                    val v0 = (vs.min() - 0.6f / strings).coerceAtLeast(0f); val v1 = (vs.max() + 0.6f / strings).coerceAtMost(1f)
-                    val region = quad(ue - noteW * 0.7f, ue + maxOf(noteW * 0.7f, tailW), v0, v1)
-                    val c = j?.let { judgementColor(it) } ?: Color.White
-                    drawPath(region, c.copy(alpha = 0.08f * fade))
-                    drawPath(region, c.copy(alpha = 0.28f * fade), style = Stroke(2f))
+                    val v0 = (vs.min() - 0.55f / strings).coerceAtLeast(0f); val v1 = (vs.max() + 0.55f / strings).coerceAtMost(1f)
+                    drawPath(quad(ue - noteW * 0.65f, ue + maxOf(noteW * 0.65f, tailW), v0, v1), Color.White.copy(alpha = if (ue < nowU) 0.04f else 0.08f))
                     e.chord?.let { name -> chordText[name]?.let { t ->
-                        val cx = sx(ue, 1f); val cy = sy(1f) - 6.dp.toPx() - t.size.height / 2f
+                        val cx = sx(ue, 1f) + t.size.width / 2f - noteW / 2; val cy = sy(1f) - 8.dp.toPx() - t.size.height / 2f
                         skewed(cx, cy, k) {
-                            drawText(t, color = j?.let { jj -> judgementColor(jj) } ?: Color.White, topLeft = Offset(-t.size.width / 2f, -t.size.height / 2f), alpha = fade)
+                            drawText(t, color = if (bad) MuColors.wrong else Color.White, topLeft = Offset(-t.size.width / 2f, -t.size.height / 2f), alpha = if (ue < nowU) 0.4f else 1f)
                         }
                     } }
                 }
                 for (n in e.notes) {
                     val v = vOf(n.string); val cx = sx(ue, v); val cy = sy(v)
-                    val sc = spacing(v) / maxSpacing
                     val ns = noteSize(v); val nh = ns.height; val nw = ns.width
-                    val lane = MuColors.strings[(n.string - 1) % 6]
-                    val col = j?.let { judgementColor(it) } ?: lane
-                    if (tailW > nw) drawPath(quad(ue, ue + tailW, v - 0.12f / strings, v + 0.12f / strings), col.copy(alpha = 0.38f * fade))
-                    if (hit && age in 0f..0.45f) {
-                        val kk = age / 0.45f
+                    val col = when { j?.kind == Kind.WRONG -> MuColors.wrong; j?.kind == Kind.MISS -> MissNote; else -> fretColor(n.fret) }
+                    if (hit && age in 0f..0.4f) {
+                        val kk = age / 0.4f
                         skewed(sx(nowU, v), cy, k) {
-                            drawOval(col.copy(alpha = (1f - kk) * 0.9f), Offset(-nh * (0.7f + 1.6f * kk), -nh * (0.5f + 1.1f * kk)),
-                                Size(nh * (1.4f + 3.2f * kk), nh * (1f + 2.2f * kk)), style = Stroke(4f * (1f - kk) + 1f))
+                            drawRoundRect(Color.White.copy(alpha = (1f - kk) * 0.9f), Offset(-nw / 2 - kk * nh, -nh / 2 - kk * nh * 0.6f),
+                                Size(nw + 2 * kk * nh, nh + 1.2f * kk * nh), CornerRadius(nh / 2 + kk * nh), style = Stroke(3.dp.toPx() * (1f - kk) + 1f))
                         }
                     }
+                    // One solid bar for the note's whole length, number on the head only. Whatever has crossed the
+                    // timing line is played and dims; what is still to play stays full strength.
                     skewed(cx, cy, k) {
-                        val r = CornerRadius(nh / 2)
-                        val glowA = if (j == null && ue in nowU - nw..nowU + nw * 3) 0.4f else 0.14f
-                        drawRoundRect(col.copy(alpha = glowA * fade), Offset(-nw / 2 - 6f, -nh / 2 - 6f), Size(nw + 12f, nh + 12f), CornerRadius(nh / 2 + 6f))
-                        drawRoundRect(lerp(col, Color.Black, 0.55f).copy(alpha = fade), Offset(-nw / 2, -nh / 2 + 5f * sc), Size(nw, nh), r)  // slab side
-                        drawRoundRect(col.copy(alpha = fade), Offset(-nw / 2, -nh / 2), Size(nw, nh), r)
-                        drawRoundRect(lerp(col, Color.White, 0.5f).copy(alpha = 0.5f * fade), Offset(-nw / 2 + nh * 0.2f, -nh * 0.4f),
-                            Size(nw - nh * 0.4f, nh * 0.22f), CornerRadius(nh * 0.11f))
+                        val x0 = -nw / 2; val x1 = maxOf(nw / 2, tailW)
+                        val split = (nowU - ue).coerceIn(x0, x1)          // local x of the timing line
+                        val gone = ((ue + x1 - gutter) / (nowU - gutter)).coerceIn(0f, 1f)   // fades out towards the gutter
+                        fun bar(a: Float, b: Float, alpha: Float) {
+                            if (b - a < 1f || alpha <= 0f) return
+                            drawRoundRect(col.copy(alpha = alpha), Offset(a, -nh / 2), Size(b - a, nh), CornerRadius(minOf(nh / 2, (b - a) / 2)))
+                        }
+                        bar(x0, split, 0.35f * gone)
+                        bar(split, x1, 1f)
                         fretText[n.fret]?.let {
-                            val ts = (nh / it.size.height * 0.95f).coerceAtMost(1.15f)
+                            val ts = (nh / it.size.height * 0.9f).coerceAtMost(1.15f)
                             withTransform({ scale(ts, ts, Offset.Zero) }) {
-                                drawText(it, topLeft = Offset(-it.size.width / 2f, -it.size.height / 2f), alpha = fade)
+                                drawText(it, topLeft = Offset(-it.size.width / 2f, -it.size.height / 2f), alpha = if (split > 0f) 0.45f * gone else 1f)
                             }
                         }
                     }
@@ -229,7 +225,8 @@ fun SongMinimap(song: Song, times: DoubleArray, songTime: Double, endTime: Doubl
     Canvas(modifier) {
         val w = size.width; val h = size.height; val end = maxOf(endTime, 1.0)
         val speed = song.endTime / end    // section starts are at 100 %
-        drawRoundRect(Color(0xFF0E0F11), cornerRadius = CornerRadius(10.dp.toPx()))
+        val r = CornerRadius(8.dp.toPx())
+        drawRoundRect(Color(0xFF101114), cornerRadius = r)
         val strings = song.stringCount; val pad = 5.dp.toPx(); val rowH = (h - 2 * pad) / strings
         fun x(t: Double) = (t / end * w).toFloat()
         for (sec in song.sections) {
@@ -240,7 +237,7 @@ fun SongMinimap(song: Song, times: DoubleArray, songTime: Double, endTime: Doubl
         for (i in times.indices) {
             val e = song.events[i]; val xe = x(times[i]); val j = judged[i]
             for (n in e.notes) {
-                val c = j?.let { judgementColor(it) } ?: MuColors.strings[(n.string - 1) % 6]
+                val c = when (j?.kind) { Kind.MISS -> MissNote; Kind.WRONG -> MuColors.wrong; else -> fretColor(n.fret) }
                 drawRect(c, Offset(xe, pad + (n.string - 1) * rowH + rowH * 0.15f), Size(mw, rowH * 0.7f))
             }
         }
@@ -250,5 +247,6 @@ fun SongMinimap(song: Song, times: DoubleArray, songTime: Double, endTime: Doubl
         drawRoundRect(Color.White.copy(alpha = 0.10f), Offset(px, 1f), Size(win, h - 2f), CornerRadius(6.dp.toPx()))
         drawRoundRect(Color.White.copy(alpha = 0.6f), Offset(px, 1f), Size(win, h - 2f), CornerRadius(6.dp.toPx()), style = Stroke(1.5.dp.toPx()))
         drawLine(Color.White, Offset(px, 0f), Offset(px, h), 2.dp.toPx())
+        drawRoundRect(Color.White.copy(alpha = 0.85f), cornerRadius = r, style = Stroke(2.dp.toPx()))   // a clear frame
     }
 }

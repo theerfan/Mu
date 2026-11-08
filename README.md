@@ -1,5 +1,8 @@
 # Guitar practice app — DSP proof of concept
 
+**Android app: [download the latest APK](https://github.com/theerfan/Mu/releases/latest/download/mu.apk)** (rebuilt on every push to
+`main`; see [Releases](https://github.com/theerfan/Mu/releases/latest)). Details in [`android/README.md`](android/README.md).
+
 Architecture: see [ARCHITECTURE.md](ARCHITECTURE.md). This README covers the C++17 DSP PoC in `dsp/`.
 
 ## Layout

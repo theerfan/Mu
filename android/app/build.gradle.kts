@@ -21,10 +21,19 @@ android {
         applicationId = "com.theerfan.mu"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI numbers every build (GITHUB_RUN_NUMBER) so each release installs over the previous one
+        val run = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+        versionCode = 1 + (run ?: 0)
+        versionName = if (run != null) "0.2.$run" else "0.2.0-dev"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_shared") } }
+    }
+    // One committed debug key (not a secret: debug-only) so CI builds and local builds share a signature and update in place.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"; keyAlias = "androiddebugkey"; keyPassword = "android"
+        }
     }
     buildTypes {
         release { isMinifyEnabled = false }

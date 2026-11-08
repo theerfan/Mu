@@ -8,9 +8,11 @@ minSdk 26 (Android 8.0), target/compile 35, ABIs arm64-v8a + x86_64.
 # JDK 17+ and an Android SDK with: platforms;android-35 build-tools;35.0.0 ndk;27.2.12479018 cmake;3.22.1
 ANDROID_HOME=/path/to/sdk ./build_apk.sh      # JVM unit tests + debug APK -> ../dist/mu-debug.apk
 ```
-CI (`ci/android.yml`, to be moved to `.github/workflows/` — the box's GitHub token lacks the `workflow` scope) runs the native tests and the same Gradle build on every push, and uploads
-the APK as the `mu-debug-apk` artifact. Each machine signs with its own debug key, so uninstall first when switching
-between a CI APK and a locally built one.
+CI (`.github/workflows/android.yml`) runs the native tests and the same Gradle build on every push. Every push to
+`main` replaces the rolling **`android`** release (tag moved to that commit, version `0.2.<run number>`), so
+<https://github.com/theerfan/Mu/releases/latest/download/mu.apk> and the repo page's Releases box always point at the
+newest build. All builds, CI and local, sign with the committed `app/debug.keystore`, so a new APK installs over the
+old one (an APK from before this change needs one uninstall).
 
 ## Install (sideload)
 * USB: enable Developer options → USB debugging, then `adb install -r dist/mu-debug.apk`.
@@ -58,6 +60,12 @@ On the phone either tap **Import a song** (file picker, end of the song list), o
 Drive, a chat app) and pick Mu. Imported songs live in app storage; delete them with the bin icon.
 
 ## Play screen
+Play runs full screen in landscape. Tap the highway (or press Back) to **pause**: resume, change the tempo, loop a
+section ("4 bars from here" or any named section), restart, or see the results so far. While paused, tap the minimap or
+drag its dot to move anywhere in the song; with a loop set, drag its blue handles to resize it. The **−/+ tempo**
+control in the top bar works while playing: the run picks up from the same spot at the new tempo after a short
+count-in. Runs that seek or loop are scored as a practice run (only the notes you played; no best score saved).
+
 A tab-style highway: one lane per string (high e on top), fret numbers on the notes, chord names above, beat/bar
 lines, and the timing line at the left. Notes turn green (perfect ±40 ms), light green (good ±80 ms), yellow
 (ok ±130 ms), orange (octave off), red (wrong) or grey (missed). The big line above the highway gives the latest
