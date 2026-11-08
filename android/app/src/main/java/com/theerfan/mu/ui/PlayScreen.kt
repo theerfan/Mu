@@ -10,19 +10,22 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,7 +45,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -60,7 +62,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -90,9 +94,7 @@ import com.theerfan.mu.audio.NativeAudio
 import com.theerfan.mu.play.Judgement
 import com.theerfan.mu.play.Kind
 import com.theerfan.mu.play.ProgressStore
-import com.theerfan.mu.play.STAR_THRESHOLDS
 import com.theerfan.mu.play.Summary
-import com.theerfan.mu.play.feedback
 import com.theerfan.mu.play.points
 import com.theerfan.mu.play.stars
 import com.theerfan.mu.play.summarize
@@ -115,12 +117,10 @@ private const val BACKING_PREROLL_SEC = 4.0
 @Composable
 fun PlayScreen(repo: SongRepository, songId: String, hasMic: Boolean, requestMic: () -> Unit, onBack: () -> Unit, onCalibrate: () -> Unit) {
     val song = remember(songId) { repo.get(songId) }
-    MuScreen {
-        when {
-            song == null -> { MuTopBar("Song", onBack); Text("Could not load this song.", Modifier.padding(20.dp), color = MuColors.textDim) }
-            !hasMic -> { MuTopBar(song.title, onBack); MicNeeded(requestMic) }
-            else -> PlayContent(song, songId, onBack, onCalibrate)
-        }
+    when {
+        song == null -> MuScreen { MuTopBar("Song", onBack); Text("Could not load this song.", Modifier.padding(20.dp), color = MuColors.textDim) }
+        !hasMic -> MuScreen { MuTopBar(song.title, onBack); MicNeeded(requestMic) }
+        else -> PlayContent(song, songId, onBack, onCalibrate)
     }
 }
 
@@ -184,7 +184,8 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
     var loop by remember { mutableStateOf<ClosedFloatingPointRange<Double>?>(null) }
     var practice by remember { mutableStateOf(false) }                // seeked or looped: results are a practice summary
     var pauseRequested by remember { mutableStateOf(false) }
-    var seekTo by remember { mutableStateOf<Double?>(null) }           // a seek made while playing, applied on pause
+    var seekTo by remember { mutableStateOf<Double?>(null) }           // a seek made while playing, applied when the run stops
+    var continueAfterSeek by remember { mutableStateOf(false) }        // that seek should keep playing, not open the pause panel
     var restartAt by remember { mutableStateOf<Double?>(null) }        // tempo changed while playing: resume here
     var renderedKey by remember { mutableStateOf<List<Any?>?>(null) }
 
@@ -258,9 +259,17 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
     }
 
     fun seek(practiceSec: Double) {
-        val p = (practiceSec * speed).coerceIn(0.0, song.endTime)
+        var p = (practiceSec * speed).coerceIn(0.0, song.endTime)
+        loop?.let { p = p.coerceIn(it.start, it.endInclusive) }
         practice = true
-        if (phase == Phase.PLAYING) { seekTo = p; pauseRequested = true } else { pos = p; songTime = p / speed }
+        if (phase == Phase.PLAYING) {
+            seekTo = p
+            continueAfterSeek = true
+            pauseRequested = true
+        } else {
+            pos = p
+            songTime = p / speed
+        }
     }
 
     LaunchedEffect(runId) {
@@ -310,10 +319,12 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
             "loop" -> { practice = true; playFrom(loop!!.start, countIn = maxOf(2, barEvery / 2)) }
             "tempo" -> playFrom(restartAt!!)
             else -> {
+                val cont = continueAfterSeek
+                continueAfterSeek = false
                 pos = seekTo ?: (maxOf(stoppedAt, runStart) * sp).coerceIn(0.0, song.endTime)
                 songTime = pos / speed
                 seekTo = null
-                phase = Phase.PAUSED
+                if (cont) playFrom(pos, countIn = 1) else phase = Phase.PAUSED
             }
         }
     }
@@ -322,29 +333,48 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
     BackHandler(enabled = phase == Phase.PAUSED) { finishRun(completed = false) }
 
     when (phase) {
-        Phase.SETUP -> Setup(song, versions, versionIdx, { versionIdx = it }, versions.map { progress.best(it.progressKey(songId)) }, speed, { speed = it }, clickThrough, { clickThrough = it }, ready, error,
-            speakerTip = clickThrough && route == AudioRoute.SPEAKER && bandMode == BandMode.OFF && guideMode == GuideMode.OFF, calibrated = calibrated, routeLabel = route.label,
-            onBack = onBack, onCalibrate = onCalibrate, onStart = { resetStats(); practice = false; loop = null; pos = 0.0; playFrom(0.0) }, preparing = preparing,
-            backing = {
-                BackingCard(bandMode, { bandMode = it; bprefs.set(songId, band = it) }, guideMode, { guideMode = it; bprefs.set(songId, guide = it) },
-                    bandVol, { bandVol = it; bprefs.set(songId, volume = it) }, recName, { picker.launch(arrayOf("audio/*")) },
-                    recStart, { recStart = it; bprefs.set(songId, recStart = it) }, hasParts = base.backing?.parts?.isNotEmpty() == true,
-                    speaker = route == AudioRoute.SPEAKER, error = backingError)
-            },
-            overview = { SongMinimap(song, times, -1.0, song.endTime / speed, emptyMap(), it) }) {
-            Highway(song, speed.toDouble(), times, beats, barEvery, (times.firstOrNull() ?: 0.0) - 0.15, emptyMap(), it)
+        Phase.SETUP -> MuScreen {
+            Setup(song, versions, versionIdx, { versionIdx = it }, versions.map { progress.best(it.progressKey(songId)) }, speed, { speed = it }, clickThrough, { clickThrough = it }, ready, error,
+                speakerTip = clickThrough && route == AudioRoute.SPEAKER && bandMode == BandMode.OFF && guideMode == GuideMode.OFF, calibrated = calibrated, routeLabel = route.label,
+                onBack = onBack, onCalibrate = onCalibrate, onStart = { resetStats(); practice = false; loop = null; pos = 0.0; playFrom(0.0) }, preparing = preparing,
+                backing = {
+                    BackingCard(bandMode, { bandMode = it; bprefs.set(songId, band = it) }, guideMode, { guideMode = it; bprefs.set(songId, guide = it) },
+                        bandVol, { bandVol = it; bprefs.set(songId, volume = it) }, recName, { picker.launch(arrayOf("audio/*")) },
+                        recStart, { recStart = it; bprefs.set(songId, recStart = it) }, hasParts = base.backing?.parts?.isNotEmpty() == true,
+                        speaker = route == AudioRoute.SPEAKER, error = backingError)
+                },
+                overview = { SongMinimap(song, times, -1.0, song.endTime / speed, emptyMap(), it) }) { mod ->
+                Box(mod) {
+                    AirBackground(0, 0f, 0.0, Modifier.matchParentSize())
+                    Highway(song, speed.toDouble(), times, beats, barEvery, (times.firstOrNull() ?: 0.0) - 0.15, emptyMap(), Modifier.matchParentSize())
+                }
+            }
         }
         Phase.PLAYING, Phase.PAUSED -> {
             KeepScreenOn()
             LockLandscape()
             val paused = phase == Phase.PAUSED
             val shown = if (paused) pos / speed else songTime
-            Playing(song, speed, shown, runStart, paused, preparing, score, streak, struggle, last,
+            val mistakes = all.count { it.kind == Kind.MISS || it.kind == Kind.WRONG }
+            Playing(song, speed, shown, runStart, paused, preparing, score, streak, mistakes, struggle,
                 onPause = { if (phase == Phase.PLAYING) pauseRequested = true },
-                onSpeed = { changeSpeed(it) },
                 minimap = {
                     ScrubMinimap(song, times, shown, song.endTime / speed, judged, loop?.let { l -> l.start / speed..l.endInclusive / speed },
-                        onSeek = { seek(it) }, onLoop = { l -> loop = l.start * speed..l.endInclusive * speed; practice = true }, modifier = it)
+                        onSeek = { seek(it) },
+                        onLoop = { l ->
+                            loop = l?.let { it.start * speed..it.endInclusive * speed }
+                            if (l != null) practice = true
+                            if (phase != Phase.PLAYING) {
+                                loop?.let { pos = pos.coerceIn(it.start, it.endInclusive) }
+                                songTime = pos / speed
+                            }
+                        },
+                        onCommit = {
+                            if (phase != Phase.PLAYING) return@ScrubMinimap
+                            val here = loop?.let { songTime.coerceIn(it.start / speed, it.endInclusive / speed) } ?: songTime
+                            seek(here)
+                        },
+                        modifier = it)
                 },
                 pausePanel = {
                     PausePanel(song, pos, speed, { changeSpeed(it) }, loop, { l -> loop = l; if (l != null) { practice = true; pos = l.start; songTime = pos / speed } },
@@ -355,7 +385,7 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
                 Highway(song, speed.toDouble(), times, beats, barEvery, shown, judged, it)
             }
         }
-        Phase.RESULTS -> Results(summary, finished, practice, newBest, onRetry = { phase = Phase.SETUP }, onBack = onBack)
+        Phase.RESULTS -> MuScreen { Results(summary, finished, practice, newBest, onRetry = { phase = Phase.SETUP }, onBack = onBack) }
     }
 }
 
@@ -388,8 +418,8 @@ private fun Setup(
         }
         VersionPicker(versions, selected, bests, onSelect)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            preview(Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(24.dp)).background(AirCalm).border(1.dp, MuColors.stroke, RoundedCornerShape(24.dp)))
-            overview(Modifier.fillMaxWidth().height(40.dp))
+            preview(Modifier.fillMaxWidth().height(210.dp).clip(RoundedCornerShape(24.dp)))
+            overview(Modifier.fillMaxWidth().height(36.dp))
         }
         HardnessCard(versions[selected].profile)
 
@@ -587,91 +617,91 @@ private fun IconBadge(color: Color, content: @Composable () -> Unit) {
 
 // ---------------------------------------------------------------- playing
 
+private val ComboSteps = intArrayOf(0, 4, 10, 20, 35)
+
+/** 1x..5x from the current hit streak, plus how full the bar toward the next tier is. */
+private fun comboTier(streak: Int): Pair<Int, Float> {
+    var tier = 0
+    for (i in ComboSteps.indices) if (streak >= ComboSteps[i]) tier = i
+    val fill = if (tier >= ComboSteps.lastIndex) 1f
+    else (streak - ComboSteps[tier]).toFloat() / (ComboSteps[tier + 1] - ComboSteps[tier])
+    return (tier + 1) to fill.coerceIn(0f, 1f)
+}
+
 @Composable
 private fun Playing(
-    song: Song, speed: Float, songTime: Double, runStart: Double, paused: Boolean, preparing: String?, score: Int, streak: Int, struggle: Float, last: Judgement?,
-    onPause: () -> Unit, onSpeed: (Float) -> Unit, minimap: @Composable (Modifier) -> Unit, pausePanel: @Composable () -> Unit,
+    song: Song, speed: Float, songTime: Double, runStart: Double, paused: Boolean, preparing: String?,
+    score: Int, streak: Int, mistakes: Int, struggle: Float,
+    onPause: () -> Unit, minimap: @Composable (Modifier) -> Unit, pausePanel: @Composable () -> Unit,
     highway: @Composable (Modifier) -> Unit,
 ) {
-    val maxScore = 100 * song.events.size
+    val safe = WindowInsets.safeDrawing
     Box(Modifier.fillMaxSize()) {
-    AirBackground(streak, struggle, songTime, Modifier.matchParentSize())
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().weight(1f)) {
-            Column(Modifier.fillMaxSize()) {
-                Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(MuColors.surfaceHi).border(1.dp, MuColors.stroke, CircleShape).clickable(onClick = onPause),
-                        contentAlignment = Alignment.Center) { PauseGlyph(Modifier.size(18.dp), MuColors.text) }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) { StarMeter(score.toFloat() / maxOf(maxScore, 1)) }
-                    Spacer(Modifier.width(12.dp))
-                    TempoNudge(speed, onSpeed)
-                    Spacer(Modifier.width(12.dp))
-                    Column(horizontalAlignment = Alignment.End, modifier = Modifier.width(84.dp)) {
-                        Text("%,d".format(score), color = MuColors.text, fontSize = 22.sp, fontWeight = FontWeight.Black, maxLines = 1)
-                        Text("SCORE", style = OverlineStyle)
-                    }
-                }
-                // section + streak, the latest judgement popping in between
-                Row(Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val section = song.sections.lastOrNull { it.start / speed <= songTime + 0.01 }?.name
-                    Box(Modifier.width(150.dp)) { if (section != null && songTime >= 0) Pill(section.uppercase(), MuColors.textDim) }
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        val fresh = !paused && last != null && songTime - last.songTime < 1.2
-                        if (fresh && last != null) key(last) {
-                            FeedbackPop(feedback(last, song.events.getOrNull(last.index)?.notes?.map { it.midi }), judgementColor(last))
-                        }
-                    }
-                    Box(Modifier.width(150.dp), contentAlignment = Alignment.CenterEnd) {
-                        if (streak >= 2) Pill("$streak streak", MuColors.orange, MuColors.orange.copy(alpha = 0.16f), icon = FlameIcon)
-                    }
-                }
-                // the highway; a tap anywhere on it pauses
-                // the board runs edge to edge under the air
-                Box(Modifier.fillMaxWidth().weight(1f).pointerInput(paused) { if (!paused) detectTapGestures { onPause() } }) {
+        AirBackground(streak, struggle, songTime, Modifier.matchParentSize())
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                Box(Modifier.fillMaxSize().pointerInput(paused) { if (!paused) detectTapGestures { onPause() } }) {
                     highway(Modifier.fillMaxSize())
-                    if (!paused && preparing == null && songTime < runStart) CountIn(song, speed, runStart - songTime)
-                    if (preparing != null && !paused) Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(Modifier.size(24.dp), color = MuColors.primary, strokeWidth = 3.dp)
-                            Spacer(Modifier.width(12.dp))
-                            Text(preparing, color = MuColors.text, fontWeight = FontWeight.Bold)
-                        }
+                }
+                if (!paused && preparing == null && songTime < runStart) CountIn(song, speed, runStart - songTime)
+                if (preparing != null && !paused) Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 3.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Text(preparing, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
+                ComboBadge(
+                    streak,
+                    Modifier.align(Alignment.TopStart)
+                        .windowInsetsPadding(safe.only(WindowInsetsSides.Top + WindowInsetsSides.Start))
+                        .padding(start = 12.dp, top = 8.dp),
+                )
+                ScoreReadout(
+                    score, mistakes,
+                    Modifier.align(Alignment.TopEnd)
+                        .windowInsetsPadding(safe.only(WindowInsetsSides.Top + WindowInsetsSides.End))
+                        .padding(end = 16.dp, top = 6.dp),
+                )
             }
-            if (paused) Box(Modifier.fillMaxSize().background(Color(0xB3000000)).padding(vertical = 8.dp), contentAlignment = Alignment.Center) { pausePanel() }
+            Row(
+                Modifier.fillMaxWidth()
+                    .windowInsetsPadding(safe.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+                    .padding(start = 4.dp, end = 14.dp, top = 2.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(44.dp).clickable(onClick = onPause), contentAlignment = Alignment.Center) {
+                    PauseGlyph(Modifier.size(18.dp), Color.White)
+                }
+                minimap(Modifier.weight(1f).height(40.dp))
+            }
         }
-        Box(Modifier.fillMaxWidth().background(Color(0xFF16110E)).padding(horizontal = 12.dp, vertical = 8.dp)) {
-            minimap(Modifier.fillMaxWidth().height(38.dp))
-        }
-    }
-    }
-}
-
-/** Score bar towards the song maximum, with the three star thresholds marked. */
-@Composable
-private fun StarMeter(fraction: Float) {
-    BoxWithConstraints(Modifier.fillMaxWidth().height(22.dp)) {
-        val w = maxWidth
-        Box(Modifier.align(Alignment.CenterStart).fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(Color(0x1AFFFFFF))) {
-            Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(10.dp).clip(RoundedCornerShape(5.dp))
-                .background(Brush.horizontalGradient(listOf(MuColors.primary, MuColors.cyan))))
-        }
-        for (t in STAR_THRESHOLDS) {
-            val lit = fraction >= t
-            Icon(Icons.Filled.Star, null, tint = if (lit) MuColors.star else Color(0xFF45484E),
-                modifier = Modifier.size(if (lit) 22.dp else 18.dp).align(Alignment.CenterStart).offset(x = w * t - 11.dp))
-        }
+        if (paused) Box(Modifier.fillMaxSize().background(Color(0xB3000000)).padding(vertical = 8.dp), contentAlignment = Alignment.Center) { pausePanel() }
     }
 }
 
 @Composable
-private fun FeedbackPop(text: String, color: Color) {
-    val a = remember { Animatable(0.4f) }
-    LaunchedEffect(Unit) { a.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)) }
-    Text(text, color = color, fontSize = 22.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-        modifier = Modifier.scale(a.value).clip(RoundedCornerShape(50)).background(color.copy(alpha = 0.14f)).padding(horizontal = 16.dp, vertical = 4.dp))
+private fun ComboBadge(streak: Int, modifier: Modifier = Modifier) {
+    val (mult, fill) = comboTier(streak)
+    Column(
+        modifier.width(64.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF3C4C26)).padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("${mult}x", color = Color.White, fontWeight = FontWeight.Black, fontSize = 22.sp)
+        Spacer(Modifier.height(3.dp))
+        Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(50)).background(Color(0xFF243018))) {
+            if (fill > 0f) Box(Modifier.fillMaxWidth(fill).height(5.dp).clip(RoundedCornerShape(50)).background(Color(0xFFC6EE78)))
+        }
+    }
+}
+
+@Composable
+private fun ScoreReadout(score: Int, mistakes: Int, modifier: Modifier = Modifier) {
+    val shadow = Shadow(Color.Black.copy(alpha = 0.28f), Offset(0f, 1f), 3f)
+    Column(modifier, horizontalAlignment = Alignment.End) {
+        Text(score.toString(), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, style = TextStyle(shadow = shadow))
+        Text(mistakes.toString(), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, style = TextStyle(shadow = shadow))
+    }
 }
 
 @Composable
@@ -679,15 +709,15 @@ private fun CountIn(song: Song, speed: Float, remaining: Double) {
     val beatSec = 60.0 / song.tempoMap.first().bpm / speed
     val n = ceil(remaining / beatSec).toInt().coerceAtLeast(1)
     val frac = ((remaining / beatSec) - (n - 1)).toFloat().coerceIn(0f, 1f)   // 1 right on the click, → 0
-    Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(120.dp).scale(0.85f + 0.3f * frac).clip(CircleShape)
-                .background(Brush.radialGradient(listOf(MuColors.accent, MuColors.accentLip))), contentAlignment = Alignment.Center) {
-                Text(if (n > 8) "…" else "$n", color = Color.White, fontSize = 60.sp, fontWeight = FontWeight.Black)
-            }
-            Spacer(Modifier.height(14.dp))
-            Text("GET READY", style = OverlineStyle.copy(color = MuColors.textDim, fontSize = 14.sp))
-        }
+    Box(Modifier.fillMaxSize().padding(top = 6.dp), contentAlignment = Alignment.TopCenter) {
+        Text(
+            if (n > 8) "…" else "$n",
+            color = Color.White,
+            fontSize = 72.sp,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.padding(top = 2.dp).scale(0.86f + 0.2f * frac),
+            style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.30f), Offset(0f, 3f), 12f)),
+        )
     }
 }
 
