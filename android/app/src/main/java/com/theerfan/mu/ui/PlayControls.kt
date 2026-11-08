@@ -228,3 +228,33 @@ fun TempoNudge(speed: Float, onSpeed: (Float) -> Unit) {
     }
 }
 
+
+val AirCalm = Color(0xFF1E2C3D)      // dusk blue: nothing going on yet
+private val AirGood = Color(0xFF1E8C5A)
+private val AirBad = Color(0xFF7C2535)
+
+/**
+ * The sky behind the fretboard, telling you how it's going: calm blue, greener as your streak grows, flushed red
+ * after misses. Soft motes drift up through it, livelier when you're playing well. [t] drives the motion (song time),
+ * so it stands still while paused.
+ */
+@Composable
+fun AirBackground(streak: Int, struggle: Float, t: Double, modifier: Modifier = Modifier) {
+    val good = (streak / 16f).coerceIn(0f, 1f)
+    val bad = (struggle * 0.8f).coerceIn(0f, 0.75f)
+    val target = androidx.compose.ui.graphics.lerp(androidx.compose.ui.graphics.lerp(AirCalm, AirGood, good), AirBad, bad)
+    val air by androidx.compose.animation.animateColorAsState(target, androidx.compose.animation.core.tween(600), label = "air")
+    val lively by androidx.compose.animation.core.animateFloatAsState(0.35f + 0.65f * good, label = "lively")
+    Canvas(modifier) {
+        drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.lerp(air, Color.White, 0.12f), air,
+            androidx.compose.ui.graphics.lerp(air, Color.Black, 0.35f))))
+        val w = size.width; val h = size.height
+        for (i in 0 until 46) {
+            // deterministic pseudo-random per mote: position, size, drift speed
+            val r1 = ((i * 0.6180339f) % 1f); val r2 = ((i * 0.3819660f + 0.17f) % 1f); val r3 = ((i * 0.7548776f + 0.31f) % 1f)
+            val x = ((r1 + (t * 0.004 * (0.5 + r3)).toFloat()) % 1f) * w
+            val y = (1f - ((r2 + (t * 0.03 * (0.4 + r3)).toFloat()) % 1f)) * h * 0.85f
+            drawCircle(Color.White.copy(alpha = (0.08f + 0.3f * r3) * lively), (1.2f + 2.2f * r3).dp.toPx(), Offset(x, y))
+        }
+    }
+}

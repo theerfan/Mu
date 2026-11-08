@@ -339,7 +339,7 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
             LockLandscape()
             val paused = phase == Phase.PAUSED
             val shown = if (paused) pos / speed else songTime
-            Playing(song, speed, shown, runStart, paused, preparing, score, streak, last,
+            Playing(song, speed, shown, runStart, paused, preparing, score, streak, struggle, last,
                 onPause = { if (phase == Phase.PLAYING) pauseRequested = true },
                 onSpeed = { changeSpeed(it) },
                 minimap = {
@@ -388,7 +388,7 @@ private fun Setup(
         }
         VersionPicker(versions, selected, bests, onSelect)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            preview(Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(24.dp)).border(1.dp, MuColors.stroke, RoundedCornerShape(24.dp)))
+            preview(Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(24.dp)).background(AirCalm).border(1.dp, MuColors.stroke, RoundedCornerShape(24.dp)))
             overview(Modifier.fillMaxWidth().height(40.dp))
         }
         HardnessCard(versions[selected].profile)
@@ -589,15 +589,17 @@ private fun IconBadge(color: Color, content: @Composable () -> Unit) {
 
 @Composable
 private fun Playing(
-    song: Song, speed: Float, songTime: Double, runStart: Double, paused: Boolean, preparing: String?, score: Int, streak: Int, last: Judgement?,
+    song: Song, speed: Float, songTime: Double, runStart: Double, paused: Boolean, preparing: String?, score: Int, streak: Int, struggle: Float, last: Judgement?,
     onPause: () -> Unit, onSpeed: (Float) -> Unit, minimap: @Composable (Modifier) -> Unit, pausePanel: @Composable () -> Unit,
     highway: @Composable (Modifier) -> Unit,
 ) {
     val maxScore = 100 * song.events.size
-    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+    Box(Modifier.fillMaxSize()) {
+    AirBackground(streak, struggle, songTime, Modifier.matchParentSize())
+    Column(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().weight(1f)) {
             Column(Modifier.fillMaxSize()) {
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(44.dp).clip(CircleShape).background(MuColors.surfaceHi).border(1.dp, MuColors.stroke, CircleShape).clickable(onClick = onPause),
                         contentAlignment = Alignment.Center) { PauseGlyph(Modifier.size(18.dp), MuColors.text) }
                     Spacer(Modifier.width(12.dp))
@@ -611,7 +613,7 @@ private fun Playing(
                     }
                 }
                 // section + streak, the latest judgement popping in between
-                Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     val section = song.sections.lastOrNull { it.start / speed <= songTime + 0.01 }?.name
                     Box(Modifier.width(150.dp)) { if (section != null && songTime >= 0) Pill(section.uppercase(), MuColors.textDim) }
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -625,8 +627,8 @@ private fun Playing(
                     }
                 }
                 // the highway; a tap anywhere on it pauses
-                Box(Modifier.fillMaxWidth().weight(1f).padding(bottom = 8.dp).clip(RoundedCornerShape(22.dp)).border(1.dp, MuColors.stroke, RoundedCornerShape(22.dp))
-                    .pointerInput(paused) { if (!paused) detectTapGestures { onPause() } }) {
+                // the board runs edge to edge under the air
+                Box(Modifier.fillMaxWidth().weight(1f).pointerInput(paused) { if (!paused) detectTapGestures { onPause() } }) {
                     highway(Modifier.fillMaxSize())
                     if (!paused && preparing == null && songTime < runStart) CountIn(song, speed, runStart - songTime)
                     if (preparing != null && !paused) Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
@@ -640,8 +642,10 @@ private fun Playing(
             }
             if (paused) Box(Modifier.fillMaxSize().background(Color(0xB3000000)).padding(vertical = 8.dp), contentAlignment = Alignment.Center) { pausePanel() }
         }
-        minimap(Modifier.fillMaxWidth().height(40.dp))
-        Spacer(Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth().background(Color(0xFF16110E)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+            minimap(Modifier.fillMaxWidth().height(38.dp))
+        }
+    }
     }
 }
 
