@@ -89,10 +89,10 @@ fun Highway(
         val w = size.width; val h = size.height
         drawRect(Brush.verticalGradient(listOf(Color(0xFF0B0C0D), Color.Black)))
         val labelH = 40.dp.toPx(); val edgeH = 9.dp.toPx(); val room = h - labelH - edgeH - 6.dp.toPx()
-        val depthPx = minOf(room, strings * 50.dp.toPx())
+        val depthPx = minOf(room, strings * 44.dp.toPx())
         val yNear = labelH + depthPx + (room - depthPx) / 2
-        val k = minOf(0.3f, 0.15f * w / depthPx)   // lean of the fret lines (gentler on narrow screens)
-        val a = 0.45f                      // perspective: lanes get closer together towards the far edge
+        val k = 0.13f                      // slight lean of the fret lines: the neck is seen nearly face-on
+        val a = 0.18f                      // mild perspective: far strings only a little closer together
         fun depth(v: Float) = depthPx * v * (1 + a) / (1 + a * v)
         fun spacing(v: Float) = depthPx * (1 + a) / ((1 + a * v) * (1 + a * v)) / strings   // local lane spacing
         fun vOf(s: Int) = (strings - s + 0.5f) / strings
@@ -129,10 +129,13 @@ fun Highway(
         }
         // strings: wound low strings in bronze, plain ones silver; a coloured name on the left
         for (s in 1..strings) {
-            val v = vOf(s); val y = sy(v); val thick = (0.9f + (strings - s + 1) * 0.55f) * (spacing(v) / spacing(0.5f))
+            // thick, metallic strings: shadow on the board, body, and a bright highlight along the top
+            val v = vOf(s); val y = sy(v); val thick = (1.8f + (strings - s) * 0.55f).dp.toPx() * (spacing(v) / spacing(0.5f))
             val col = if (s > strings / 2) WoundString else PlainString
-            drawLine(Color.Black.copy(alpha = 0.6f), Offset(sx(gutter, v), y + thick + 1.5f), Offset(w + 40f, y + thick + 1.5f), thick)   // shadow
-            drawLine(col.copy(alpha = 0.8f), Offset(sx(gutter, v), y), Offset(w + 40f, y), thick)
+            val x0 = sx(gutter, v)
+            drawLine(Color.Black.copy(alpha = 0.7f), Offset(x0, y + thick * 0.9f), Offset(w + 40f, y + thick * 0.9f), thick)
+            drawLine(lerp(col, Color.Black, 0.25f), Offset(x0, y), Offset(w + 40f, y), thick)
+            drawLine(lerp(col, Color.White, 0.55f), Offset(x0, y - thick * 0.25f), Offset(w + 40f, y - thick * 0.25f), thick * 0.35f)
             val label = stringText[s - 1]
             drawText(label, topLeft = Offset(sx(gutter / 2f, v) - label.size.width / 2f, y - label.size.height / 2f))
         }

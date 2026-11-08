@@ -70,7 +70,11 @@ import android.content.Intent
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.pointer.pointerInput
 import com.theerfan.mu.audio.AudioDecoder
 import com.theerfan.mu.audio.AudioRoute
 import com.theerfan.mu.audio.BackingBuilder
@@ -103,7 +107,7 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-private enum class Phase { SETUP, PLAYING, RESULTS }
+private enum class Phase { SETUP, PLAYING, PAUSED, RESULTS }
 
 /** Backing tracks start this long before song time 0, so a recording's intro can play during the count-in. */
 private const val BACKING_PREROLL_SEC = 4.0
@@ -173,9 +177,24 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
     val beats = remember(speed, song) { Timing.beatTimes(song.tempoMap, song.endTime).map { it / speed }.toDoubleArray() }
     val barEvery = song.timeSig.firstOrNull()?.num ?: 4
 
-    fun guideGain() = when (guideMode) { GuideMode.OFF -> 0f; GuideMode.ALWAYS -> 0.55f; GuideMode.AUTO -> 0.6f * struggle.coerceIn(0f, 1f) }
+    // ---- the run: positions are score seconds (100 % tempo) so they survive tempo changes
+    var pos by remember { mutableDoubleStateOf(0.0) }                 // where the next run starts / where we paused
+    var runStart by remember { mutableDoubleStateOf(0.0) }            // practice seconds where the current run begins
+    var segBase by remember { mutableIntStateOf(0) }                  // first event index loaded into the scorer
+    var loop by remember { mutableStateOf<ClosedFloatingPointRange<Double>?>(null) }
+    var practice by remember { mutableStateOf(false) }                // seeked or looped: results are a practice summary
+    var pauseRequested by remember { mutableStateOf(false) }
+    var seekTo by remember { mutableStateOf<Double?>(null) }           // a seek made while playing, applied on pause
+    var restartAt by remember { mutableStateOf<Double?>(null) }        // tempo changed while playing: resume here
+    var renderedKey by remember { mutableStateOf<List<Any?>?>(null) }
 
-    fun start() = scope.launch {
+    fun guideGain() = when (guideMode) { GuideMode.OFF -> 0f; GuideMode.ALWAYS -> 0.55f; GuideMode.AUTO -> 0.6f * struggle.coerceIn(0f, 1f) }
+    fun bandGain() = if (bandMode == BandMode.OFF) 0f else bandVol
+
+    /** Renders the backing for the current tempo/version/settings unless that's already done. False = can't play. */
+    suspend fun ensureBacking(): Boolean {
+        val key = listOf(speed, versionIdx, bandMode, recStart, recName)
+        if (key == renderedKey) return true
         val sp = speed.toDouble()
         preparing = if (bandMode == BandMode.RECORDING && recPcm == null) "Loading recording…" else "Preparing backing…"
         backingError = null
@@ -190,25 +209,70 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
             }
         }
         preparing = null
-        result.onSuccess { if (it != null) recPcm = it }
+        result.onSuccess { if (it != null) recPcm = it; renderedKey = key }
             .onFailure { backingError = "Backing unavailable: ${it.message}"; NativeAudio.setBackingGains(0f, 0f) }
-        if (result.isFailure && bandMode == BandMode.RECORDING) return@launch
-        struggle = 0f
-        NativeAudio.setBackingGains(if (bandMode == BandMode.OFF) 0f else bandVol, guideGain())
-        val exp = Timing.expected(song, speed.toDouble())
-        NativeAudio.loadSong(exp.times, exp.counts, exp.midis)
-        val clicks = Timing.clicks(song, speed.toDouble(), barEvery, clickThrough)
-        NativeAudio.setUserOffsetMs(store.effective(AudioRoute.current(context)))
-        judged.clear(); all = emptyList(); last = null; score = 0; streak = 0; summary = null; stopRequested = false; newBest = false
-        if (NativeAudio.startPlay(clicks.times, clicks.accents, clicks.leadInSec, 0.6f)) { phase = Phase.PLAYING; runId++ }
+        return result.isSuccess || bandMode != BandMode.RECORDING
     }
 
-    LaunchedEffect(phase, runId) {
+    /** Starts a run at score position [p100] (loop end or song end stops it) after [countIn] clicks. */
+    fun playFrom(p100: Double, countIn: Int = barEvery) = scope.launch {
+        if (!ensureBacking()) { phase = if (phase == Phase.PLAYING) Phase.PAUSED else phase; return@launch }
+        val sp = speed.toDouble()
+        val t0 = (p100 / sp).coerceIn(0.0, song.endTime / sp)
+        val exp = Timing.expected(song, sp)
+        val from = Timing.firstAtOrAfter(exp.times, t0 - 0.02)
+        val to = loop?.let { Timing.firstAtOrAfter(exp.times, it.endInclusive / sp) }?.coerceAtLeast(from) ?: exp.times.size
+        val n0 = exp.counts.take(from).sum(); val n1 = n0 + exp.counts.slice(from until to).sum()
+        NativeAudio.loadSong(exp.times.copyOfRange(from, to), exp.counts.copyOfRange(from, to), exp.midis.copyOfRange(n0, n1))
+        segBase = from
+        val clicks = Timing.clicksFrom(song, sp, t0, countIn, clickThrough)
+        NativeAudio.setUserOffsetMs(store.effective(AudioRoute.current(context)))
+        NativeAudio.setBackingGains(bandGain(), guideGain())
+        pauseRequested = false; seekTo = null; restartAt = null
+        runStart = t0; songTime = t0 - clicks.leadInSec
+        if (NativeAudio.startPlay(clicks.times, clicks.accents, clicks.leadInSec - t0, 0.6f)) { phase = Phase.PLAYING; runId++ }
+    }
+
+    fun resetStats() { judged.clear(); all = emptyList(); last = null; score = 0; streak = 0; summary = null; newBest = false; struggle = 0f }
+
+    fun finishRun(completed: Boolean) {
+        val s = if (!practice && completed) summarize(all, times.size) { song.events[it].isChord }
+        else {
+            // a practice run (seeks, loops, or ended early): score only the notes that were actually played
+            val idx = judged.keys.sorted()
+            val remap = idx.withIndex().associate { (k, v) -> v to k }
+            val js = idx.map { i -> judged.getValue(i).copy(index = remap.getValue(i)) } + all.filter { it.kind == Kind.EXTRA }
+            summarize(js, idx.size) { song.events[idx[it]].isChord }
+        }
+        finished = completed && !practice
+        if (finished) newBest = progress.record(version.progressKey(songId), s)
+        summary = s
+        phase = Phase.RESULTS
+    }
+
+    fun changeSpeed(v: Float) {
+        val nv = v.coerceIn(0.4f, 1.5f)
+        if (nv == speed) return
+        if (phase == Phase.PLAYING && preparing == null) restartAt = maxOf(songTime, runStart) * speed   // resume right here at the new tempo
+        speed = nv
+    }
+
+    fun seek(practiceSec: Double) {
+        val p = (practiceSec * speed).coerceIn(0.0, song.endTime)
+        practice = true
+        if (phase == Phase.PLAYING) { seekTo = p; pauseRequested = true } else { pos = p; songTime = p / speed }
+    }
+
+    LaunchedEffect(runId) {
         if (phase != Phase.PLAYING) return@LaunchedEffect
         val buf = FloatArray(64 * Judgement.FLOATS)
-        val end = song.endTime / speed + 1.6
-        fun apply(js: List<Judgement>) {
-            for (j in js) {
+        val sp = speed.toDouble(); val tt = times; val base0 = segBase
+        val end = song.endTime / sp + 1.6
+        val loopEnd = loop?.let { it.endInclusive / sp }
+        fun apply(js: List<Judgement>, dueBefore: Double = Double.MAX_VALUE) {
+            for (j0 in js) {
+                val j = if (j0.index >= 0) j0.copy(index = j0.index + base0) else j0
+                if (j.kind != Kind.EXTRA && j.index >= 0 && tt.getOrElse(j.index) { 0.0 } >= dueBefore) continue   // not reached yet
                 all = all + j
                 if (j.kind != Kind.EXTRA && j.index >= 0) judged[j.index] = j
                 if (j.kind != Kind.MISS || last == null || j.songTime > (last?.songTime ?: 0f)) last = j
@@ -219,6 +283,7 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
             }
         }
         var sentGuide = -1f
+        var outcome: String
         while (true) {
             withFrameNanos { }
             songTime = NativeAudio.songTime()
@@ -226,25 +291,40 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
             if (n > 0) apply(Judgement.unpack(buf, n))
             struggle *= 0.997f
             val g = guideGain()
-            if (abs(g - sentGuide) > 0.01f) { NativeAudio.setBackingGains(if (bandMode == BandMode.OFF) 0f else bandVol, g); sentGuide = g }
-            if (songTime > end || stopRequested) break
+            if (abs(g - sentGuide) > 0.01f) { NativeAudio.setBackingGains(bandGain(), g); sentGuide = g }
+            outcome = when {
+                pauseRequested -> "pause"
+                restartAt != null -> "tempo"
+                loopEnd != null && songTime > loopEnd + 0.25 -> "loop"
+                songTime > end -> "end"
+                else -> continue
+            }
+            break
         }
         val fin = FloatArray(4096 * Judgement.FLOATS)
-        apply(Judgement.unpack(fin, NativeAudio.finishPlay(fin)))
+        val stoppedAt = songTime
+        apply(Judgement.unpack(fin, NativeAudio.finishPlay(fin)), if (outcome == "end" || outcome == "loop") Double.MAX_VALUE else stoppedAt)
         NativeAudio.stopAll()
-        // Stopped early: only score the events that were due.
-        val due = if (stopRequested) Timing.firstAtOrAfter(times, songTime) else times.size
-        val s = summarize(all.filter { it.index < due }, due) { song.events[it].isChord }
-        finished = !stopRequested
-        if (finished) newBest = progress.record(version.progressKey(songId), s)
-        summary = s
-        phase = Phase.RESULTS
+        when (outcome) {
+            "end" -> finishRun(completed = true)
+            "loop" -> { practice = true; playFrom(loop!!.start, countIn = maxOf(2, barEvery / 2)) }
+            "tempo" -> playFrom(restartAt!!)
+            else -> {
+                pos = seekTo ?: (maxOf(stoppedAt, runStart) * sp).coerceIn(0.0, song.endTime)
+                songTime = pos / speed
+                seekTo = null
+                phase = Phase.PAUSED
+            }
+        }
     }
+
+    BackHandler(enabled = phase == Phase.PLAYING) { pauseRequested = true }
+    BackHandler(enabled = phase == Phase.PAUSED) { finishRun(completed = false) }
 
     when (phase) {
         Phase.SETUP -> Setup(song, versions, versionIdx, { versionIdx = it }, versions.map { progress.best(it.progressKey(songId)) }, speed, { speed = it }, clickThrough, { clickThrough = it }, ready, error,
             speakerTip = clickThrough && route == AudioRoute.SPEAKER && bandMode == BandMode.OFF && guideMode == GuideMode.OFF, calibrated = calibrated, routeLabel = route.label,
-            onBack = onBack, onCalibrate = onCalibrate, onStart = { start() }, preparing = preparing,
+            onBack = onBack, onCalibrate = onCalibrate, onStart = { resetStats(); practice = false; loop = null; pos = 0.0; playFrom(0.0) }, preparing = preparing,
             backing = {
                 BackingCard(bandMode, { bandMode = it; bprefs.set(songId, band = it) }, guideMode, { guideMode = it; bprefs.set(songId, guide = it) },
                     bandVol, { bandVol = it; bprefs.set(songId, volume = it) }, recName, { picker.launch(arrayOf("audio/*")) },
@@ -254,14 +334,28 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
             overview = { SongMinimap(song, times, -1.0, song.endTime / speed, emptyMap(), it) }) {
             Highway(song, speed.toDouble(), times, beats, barEvery, (times.firstOrNull() ?: 0.0) - 0.15, emptyMap(), it)
         }
-        Phase.PLAYING -> {
+        Phase.PLAYING, Phase.PAUSED -> {
             KeepScreenOn()
-            Playing(song, speed, songTime, score, streak, last, onStop = { stopRequested = true },
-                minimap = { SongMinimap(song, times, songTime, song.endTime / speed, judged, it) }) {
-                Highway(song, speed.toDouble(), times, beats, barEvery, songTime, judged, it)
+            LockLandscape()
+            val paused = phase == Phase.PAUSED
+            val shown = if (paused) pos / speed else songTime
+            Playing(song, speed, shown, runStart, paused, preparing, score, streak, last,
+                onPause = { if (phase == Phase.PLAYING) pauseRequested = true },
+                onSpeed = { changeSpeed(it) },
+                minimap = {
+                    ScrubMinimap(song, times, shown, song.endTime / speed, judged, loop?.let { l -> l.start / speed..l.endInclusive / speed },
+                        onSeek = { seek(it) }, onLoop = { l -> loop = l.start * speed..l.endInclusive * speed; practice = true }, modifier = it)
+                },
+                pausePanel = {
+                    PausePanel(song, pos, speed, { changeSpeed(it) }, loop, { l -> loop = l; if (l != null) { practice = true; pos = l.start; songTime = pos / speed } },
+                        onResume = { playFrom(pos) },
+                        onRestart = { resetStats(); practice = loop != null; pos = loop?.start ?: 0.0; playFrom(pos) },
+                        onFinish = { finishRun(completed = false) }, onQuit = onBack, preparing = preparing)
+                }) {
+                Highway(song, speed.toDouble(), times, beats, barEvery, shown, judged, it)
             }
         }
-        Phase.RESULTS -> Results(summary, finished, newBest, onRetry = { phase = Phase.SETUP }, onBack = onBack)
+        Phase.RESULTS -> Results(summary, finished, practice, newBest, onRetry = { phase = Phase.SETUP }, onBack = onBack)
     }
 }
 
@@ -495,49 +589,59 @@ private fun IconBadge(color: Color, content: @Composable () -> Unit) {
 
 @Composable
 private fun Playing(
-    song: Song, speed: Float, songTime: Double, score: Int, streak: Int, last: Judgement?, onStop: () -> Unit,
-    minimap: @Composable (Modifier) -> Unit, highway: @Composable (Modifier) -> Unit,
+    song: Song, speed: Float, songTime: Double, runStart: Double, paused: Boolean, preparing: String?, score: Int, streak: Int, last: Judgement?,
+    onPause: () -> Unit, onSpeed: (Float) -> Unit, minimap: @Composable (Modifier) -> Unit, pausePanel: @Composable () -> Unit,
+    highway: @Composable (Modifier) -> Unit,
 ) {
     val maxScore = 100 * song.events.size
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            RoundIconButton(Icons.Filled.Close, "Stop", onStop, size = 42.dp)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) { StarMeter(score.toFloat() / maxOf(maxScore, 1)) }
-            Spacer(Modifier.width(14.dp))
-            Column(horizontalAlignment = Alignment.End) {
-                Text("%,d".format(score), color = MuColors.text, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                Text("SCORE", style = OverlineStyle)
-            }
-        }
-        // section + streak, then the latest judgement popping in
-        Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            val section = song.sections.lastOrNull { it.start / speed <= songTime }?.name
-            Box(Modifier.width(110.dp)) { if (section != null && songTime >= 0) Pill(section.uppercase(), MuColors.textDim) }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                val fresh = last != null && songTime - last.songTime < 1.2
-                if (fresh && last != null) key(last) {
-                    FeedbackPop(feedback(last, song.events.getOrNull(last.index)?.notes?.map { it.midi }), judgementColor(last))
+    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            Column(Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(MuColors.surfaceHi).border(1.dp, MuColors.stroke, CircleShape).clickable(onClick = onPause),
+                        contentAlignment = Alignment.Center) { PauseGlyph(Modifier.size(18.dp), MuColors.text) }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) { StarMeter(score.toFloat() / maxOf(maxScore, 1)) }
+                    Spacer(Modifier.width(12.dp))
+                    TempoNudge(speed, onSpeed)
+                    Spacer(Modifier.width(12.dp))
+                    Column(horizontalAlignment = Alignment.End, modifier = Modifier.width(84.dp)) {
+                        Text("%,d".format(score), color = MuColors.text, fontSize = 22.sp, fontWeight = FontWeight.Black, maxLines = 1)
+                        Text("SCORE", style = OverlineStyle)
+                    }
                 }
-            }
-            Box(Modifier.width(110.dp), contentAlignment = Alignment.CenterEnd) {
-                if (streak >= 2) Pill("$streak streak", MuColors.orange, MuColors.orange.copy(alpha = 0.16f), icon = FlameIcon)
-            }
-        }
-        // the highway keeps a sensible height and sits centred in whatever room is left (tall in portrait, short in
-        // landscape), with the song minimap right under it
-        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).padding(start = 12.dp, end = 12.dp, bottom = 12.dp), contentAlignment = Alignment.Center) {
-            val mapH = if (maxHeight < 300.dp) 30.dp else 44.dp
-            val boardH = minOf(maxHeight - mapH - 8.dp, 440.dp)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.fillMaxWidth().height(boardH).clip(RoundedCornerShape(24.dp))
-                    .border(1.dp, MuColors.stroke, RoundedCornerShape(24.dp))) {
+                // section + streak, the latest judgement popping in between
+                Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val section = song.sections.lastOrNull { it.start / speed <= songTime + 0.01 }?.name
+                    Box(Modifier.width(150.dp)) { if (section != null && songTime >= 0) Pill(section.uppercase(), MuColors.textDim) }
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        val fresh = !paused && last != null && songTime - last.songTime < 1.2
+                        if (fresh && last != null) key(last) {
+                            FeedbackPop(feedback(last, song.events.getOrNull(last.index)?.notes?.map { it.midi }), judgementColor(last))
+                        }
+                    }
+                    Box(Modifier.width(150.dp), contentAlignment = Alignment.CenterEnd) {
+                        if (streak >= 2) Pill("$streak streak", MuColors.orange, MuColors.orange.copy(alpha = 0.16f), icon = FlameIcon)
+                    }
+                }
+                // the highway; a tap anywhere on it pauses
+                Box(Modifier.fillMaxWidth().weight(1f).padding(bottom = 8.dp).clip(RoundedCornerShape(22.dp)).border(1.dp, MuColors.stroke, RoundedCornerShape(22.dp))
+                    .pointerInput(paused) { if (!paused) detectTapGestures { onPause() } }) {
                     highway(Modifier.fillMaxSize())
-                    if (songTime < 0) CountIn(song, speed, songTime)
+                    if (!paused && preparing == null && songTime < runStart) CountIn(song, speed, runStart - songTime)
+                    if (preparing != null && !paused) Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(24.dp), color = MuColors.primary, strokeWidth = 3.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Text(preparing, color = MuColors.text, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-                minimap(Modifier.fillMaxWidth().height(mapH))
             }
+            if (paused) Box(Modifier.fillMaxSize().background(Color(0xB3000000)).padding(vertical = 8.dp), contentAlignment = Alignment.Center) { pausePanel() }
         }
+        minimap(Modifier.fillMaxWidth().height(40.dp))
+        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -567,10 +671,10 @@ private fun FeedbackPop(text: String, color: Color) {
 }
 
 @Composable
-private fun CountIn(song: Song, speed: Float, songTime: Double) {
+private fun CountIn(song: Song, speed: Float, remaining: Double) {
     val beatSec = 60.0 / song.tempoMap.first().bpm / speed
-    val n = ceil(-songTime / beatSec).toInt()
-    val frac = ((-songTime / beatSec) - (n - 1)).toFloat().coerceIn(0f, 1f)   // 1 right on the click, → 0
+    val n = ceil(remaining / beatSec).toInt().coerceAtLeast(1)
+    val frac = ((remaining / beatSec) - (n - 1)).toFloat().coerceIn(0f, 1f)   // 1 right on the click, → 0
     Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(120.dp).scale(0.85f + 0.3f * frac).clip(CircleShape)
@@ -586,14 +690,14 @@ private fun CountIn(song: Song, speed: Float, songTime: Double) {
 // ---------------------------------------------------------------- results
 
 @Composable
-private fun Results(s: Summary?, finished: Boolean, newBest: Boolean, onRetry: () -> Unit, onBack: () -> Unit) {
+private fun Results(s: Summary?, finished: Boolean, practice: Boolean, newBest: Boolean, onRetry: () -> Unit, onBack: () -> Unit) {
     MuTopBar("", onBack)
     if (s == null) { Text("No result", Modifier.padding(20.dp), color = MuColors.textDim); return }
     val earned = stars(s.score, s.maxScore)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            if (!finished) "Stopped early" else when (earned) { 3 -> "Amazing!"; 2 -> "Great job!"; 1 -> "Nice work!"; else -> "Keep practicing!" },
+            if (practice) "Practice run" else if (!finished) "Stopped early" else when (earned) { 3 -> "Amazing!"; 2 -> "Great job!"; 1 -> "Nice work!"; else -> "Keep practicing!" },
             style = MaterialTheme.typography.displaySmall, color = MuColors.text, textAlign = TextAlign.Center,
         )
         BigStars(earned)

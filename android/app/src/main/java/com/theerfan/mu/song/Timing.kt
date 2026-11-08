@@ -46,6 +46,28 @@ object Timing {
         return Clicks(times.toDoubleArray(), acc.toBooleanArray(), countInBeats * beat0 + 0.4)
     }
 
+    /**
+     * Clicks for a run that starts at practice time [t0] (seconds at [speed]): [countIn] clicks on the beat grid just
+     * before the first beat at/after t0, then (if [throughSong]) every beat from there on, bar starts accented.
+     * [Clicks.leadInSec] is the time from "now" to t0, so song time now = t0 − leadIn.
+     */
+    fun clicksFrom(song: Song, speed: Double, t0: Double, countIn: Int, throughSong: Boolean): Clicks {
+        val num = song.timeSig.firstOrNull()?.num?.coerceAtLeast(1) ?: 4
+        val beats = beatTimes(song.tempoMap, song.endTime).map { it / speed }.toDoubleArray()
+        val i = firstAtOrAfter(beats, t0 - 1e-6)
+        val beatLen = when {
+            beats.size >= 2 && i in 1 until beats.size -> beats[i] - beats[i - 1]
+            beats.size >= 2 -> beats[1] - beats[0]
+            else -> 60.0 / (song.tempoMap.firstOrNull()?.bpm ?: 120.0) / speed
+        }
+        val first = beats.getOrElse(i) { t0 }
+        val times = ArrayList<Double>(); val acc = ArrayList<Boolean>()
+        for (k in countIn downTo 1) { times += first - k * beatLen; acc += k == countIn }
+        if (throughSong) for (b in i until beats.size) { times += beats[b]; acc += b % num == 0 }
+        val leadIn = t0 - (first - countIn * beatLen) + 0.3
+        return Clicks(times.toDoubleArray(), acc.toBooleanArray(), leadIn)
+    }
+
     /** Expected events for the native scorer: times scaled by speed, notes flattened. */
     data class Expected(val times: DoubleArray, val counts: IntArray, val midis: IntArray)
 
