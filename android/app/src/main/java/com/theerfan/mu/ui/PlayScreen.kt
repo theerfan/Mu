@@ -51,6 +51,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -75,6 +76,8 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.rememberCoroutineScope
@@ -356,7 +359,7 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
             val paused = phase == Phase.PAUSED
             val shown = if (paused) pos / speed else songTime
             val mistakes = all.count { it.kind == Kind.MISS || it.kind == Kind.WRONG }
-            Playing(song, speed, shown, runStart, paused, preparing, score, streak, mistakes, struggle,
+            Playing(song, speed, { changeSpeed(it) }, shown, runStart, paused, preparing, score, streak, mistakes, struggle,
                 onPause = { if (phase == Phase.PLAYING) pauseRequested = true },
                 minimap = {
                     ScrubMinimap(song, times, shown, song.endTime / speed, judged, loop?.let { l -> l.start / speed..l.endInclusive / speed },
@@ -630,7 +633,7 @@ private fun comboTier(streak: Int): Pair<Int, Float> {
 
 @Composable
 private fun Playing(
-    song: Song, speed: Float, songTime: Double, runStart: Double, paused: Boolean, preparing: String?,
+    song: Song, speed: Float, onSpeed: (Float) -> Unit, songTime: Double, runStart: Double, paused: Boolean, preparing: String?,
     score: Int, streak: Int, mistakes: Int, struggle: Float,
     onPause: () -> Unit, minimap: @Composable (Modifier) -> Unit, pausePanel: @Composable () -> Unit,
     highway: @Composable (Modifier) -> Unit,
@@ -657,12 +660,16 @@ private fun Playing(
                         .windowInsetsPadding(safe.only(WindowInsetsSides.Top + WindowInsetsSides.Start))
                         .padding(start = 12.dp, top = 8.dp),
                 )
-                ScoreReadout(
-                    score, mistakes,
+                Row(
                     Modifier.align(Alignment.TopEnd)
                         .windowInsetsPadding(safe.only(WindowInsetsSides.Top + WindowInsetsSides.End))
-                        .padding(end = 16.dp, top = 6.dp),
-                )
+                        .padding(end = 12.dp, top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TempoSlider(speed, onSpeed)
+                    Spacer(Modifier.width(10.dp))
+                    ScoreReadout(score, mistakes)
+                }
             }
             Row(
                 Modifier.fillMaxWidth()
@@ -691,6 +698,70 @@ private fun ComboBadge(streak: Int, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(3.dp))
         Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(50)).background(Color(0xFF243018))) {
             if (fill > 0f) Box(Modifier.fillMaxWidth(fill).height(5.dp).clip(RoundedCornerShape(50)).background(Color(0xFFC6EE78)))
+        }
+    }
+}
+
+/** Tempo, live, beside the score. The new speed applies when the finger lifts, so a drag doesn't restart audio every tick. */
+@Composable
+private fun TempoSlider(speed: Float, onSpeed: (Float) -> Unit) {
+    val commit by rememberUpdatedState(onSpeed)
+    var dragging by remember { mutableStateOf(false) }
+    var drag by remember { mutableFloatStateOf(speed) }
+    val shown = if (dragging) drag else speed
+    val minV = 0.5f
+    val maxV = 1.25f
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "${(shown * 100).roundToInt()}%",
+            color = Color.White,
+            fontWeight = FontWeight.Black,
+            fontSize = 15.sp,
+            style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.28f), Offset(0f, 1f), 3f)),
+        )
+        Spacer(Modifier.width(8.dp))
+        Canvas(
+            Modifier.width(150.dp).height(36.dp).pointerInput(Unit) {
+                fun at(x: Float): Float {
+                    val pad = 12.dp.toPx()
+                    val t = ((x - pad) / (size.width - pad * 2f)).coerceIn(0f, 1f)
+                    return (((minV + t * (maxV - minV)) * 20f).roundToInt() / 20f).coerceIn(minV, maxV)
+                }
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    dragging = true
+                    drag = at(down.position.x)
+                    down.consume()
+                    var released = false
+                    while (!released) {
+                        val event = awaitPointerEvent()
+                        for (change in event.changes) {
+                            if (!change.pressed) released = true
+                            else {
+                                drag = at(change.position.x)
+                                change.consume()
+                            }
+                        }
+                    }
+                    commit(drag)
+                    dragging = false
+                }
+            },
+        ) {
+            val pad = 12.dp.toPx()
+            val cy = size.height / 2f
+            val t = ((shown - minV) / (maxV - minV)).coerceIn(0f, 1f)
+            val x = pad + t * (size.width - pad * 2f)
+            val trackH = 7.dp.toPx()
+            val radius = CornerRadius(trackH / 2f, trackH / 2f)
+            drawRoundRect(Color.White.copy(alpha = 0.45f), Offset(pad, cy - trackH / 2f), Size(size.width - pad * 2f, trackH), radius)
+            if (x > pad + 1f) {
+                drawRoundRect(Color(0xFF243018), Offset(pad, cy - trackH / 2f), Size(x - pad, trackH), radius)
+            }
+            val knob = 11.dp.toPx()
+            drawCircle(Color.Black.copy(alpha = 0.22f), knob, Offset(x, cy + 1.2.dp.toPx()))
+            drawCircle(Color.White, knob, Offset(x, cy))
+            drawCircle(Color(0xFF243018), 4.5.dp.toPx(), Offset(x, cy))
         }
     }
 }

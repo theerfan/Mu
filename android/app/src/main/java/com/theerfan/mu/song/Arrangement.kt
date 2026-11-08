@@ -121,7 +121,7 @@ data class DifficultyProfile(
             val hardest = ChordKind.entries.last { it in chords }
             val amount = when (hardest) { ChordKind.POWER -> 0.3f; ChordKind.OPEN -> 0.35f; ChordKind.EXTENDED -> 0.65f; ChordKind.BARRE -> 0.85f }
             add(Factor("Chords", amount, ChordKind.entries.filter { it in chords }.joinToString("  ·  ") { k ->
-                "${k.label}: " + chords.getValue(k).take(5).joinToString(", ") + if (chords.getValue(k).size > 5) "…" else ""
+                "${k.label}: " + chords.getValue(k).take(5).joinToString(", ") { Difficulty.chordSymbol(it) } + if (chords.getValue(k).size > 5) "…" else ""
             }))
         } else add(Factor("Chords", 0f, "No chords: single notes only."))
         changeSec?.let { c ->
@@ -217,14 +217,53 @@ object Difficulty {
 
     /** A plain name for unnamed chords: root (lowest note) + major/minor/5 when recognisable, else the notes. */
     fun chordName(e: SongEvent): String {
-        val names = arrayOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
         val root = e.notes.minOf { it.midi } % 12
         val iv = e.notes.map { (it.midi - root + 120) % 12 }.toSet()
-        return names[root] + when {
+        return PITCH[root] + when {
             4 in iv && 7 in iv -> ""
             3 in iv && 7 in iv -> "m"
             iv == setOf(0, 7) -> "5"
-            else -> "(" + e.notes.sortedBy { it.midi }.joinToString("") { names[it.midi % 12] } + ")"
+            else -> "(" + e.notes.sortedBy { it.midi }.joinToString("") { PITCH[it.midi % 12] } + ")"
         }
+    }
+
+    /**
+     * Lead-sheet spelling. Major is just the root, minor is "m", major 7ths use Δ, and accidentals are ♯ and ♭
+     * rather than words like Maj or min.
+     */
+    fun chordSymbol(raw: String): String {
+        val parts = raw.trim().split("/")
+        if (parts.isEmpty() || parts[0].isEmpty()) return raw
+        val head = symbolOne(parts[0])
+        if (parts.size == 1) return head
+        val bass = parts[1]
+        val bassSym = if (bass.isNotEmpty() && bass[0] in "ABCDEFGabcdefg") symbolOne(bass) else bass
+        return "$head/$bassSym"
+    }
+
+    private val PITCH = arrayOf("C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B")
+    private val LETTER = intArrayOf(9, 11, 0, 2, 4, 5, 7) // A B C D E F G
+
+    private fun symbolOne(token: String): String {
+        val s = token.trim()
+        if (s.isEmpty() || s[0].uppercaseChar() !in 'A'..'G') return s.replace("#", "♯").replace("b", "♭")
+        val letter = LETTER[s[0].uppercaseChar() - 'A']
+        var i = 1
+        var acc = 0
+        if (i < s.length && (s[i] == '#' || s[i] == '♯')) { acc = 1; i++ }
+        else if (i < s.length && (s[i] == 'b' || s[i] == '♭') && (i + 1 >= s.length || !s[i + 1].isDigit())) { acc = -1; i++ }
+        var q = s.substring(i)
+        // Longer words first, so "major7" becomes Δ7 and a plain "major" can still collapse to the bare root.
+        q = q.replace("major", "Δ", ignoreCase = true)
+        q = q.replace("minor", "m", ignoreCase = true)
+        q = q.replace("maj", "Δ", ignoreCase = true)
+        q = q.replace("min", "m", ignoreCase = true)
+        q = q.replace("dim", "°", ignoreCase = true)
+        q = q.replace("aug", "+", ignoreCase = true)
+        q = Regex("^M(?=\\d)").replace(q, "Δ")
+        if (q == "Δ" || q == "M" || q.equals("mi", ignoreCase = true)) q = if (q.equals("mi", ignoreCase = true)) "m" else ""
+        q = q.replace("#", "♯")
+        q = Regex("b(?=\\d)").replace(q, "♭")
+        return PITCH[(letter + acc).mod(12)] + q
     }
 }
