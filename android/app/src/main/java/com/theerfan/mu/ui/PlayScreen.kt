@@ -78,7 +78,10 @@ import com.theerfan.mu.play.feedback
 import com.theerfan.mu.play.points
 import com.theerfan.mu.play.stars
 import com.theerfan.mu.play.summarize
+import com.theerfan.mu.song.Arrangements
+import com.theerfan.mu.song.DifficultyProfile
 import com.theerfan.mu.song.Song
+import com.theerfan.mu.song.Version
 import com.theerfan.mu.song.SongRepository
 import com.theerfan.mu.song.Timing
 import kotlinx.coroutines.delay
@@ -101,8 +104,12 @@ fun PlayScreen(repo: SongRepository, songId: String, hasMic: Boolean, requestMic
 }
 
 @Composable
-private fun PlayContent(song: Song, songId: String, onBack: () -> Unit, onCalibrate: () -> Unit) {
+private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibrate: () -> Unit) {
     val context = LocalContext.current
+    val versions = remember(base) { Arrangements.versions(base) }
+    var versionIdx by remember { mutableIntStateOf(versions.lastIndex) }
+    val version = versions[versionIdx]
+    val song = version.song
     val (ready, error) = rememberAudio(true)
     var phase by remember { mutableStateOf(Phase.SETUP) }
     var speed by remember { mutableFloatStateOf(1f) }
@@ -123,8 +130,8 @@ private fun PlayContent(song: Song, songId: String, onBack: () -> Unit, onCalibr
     val route = remember(runId) { AudioRoute.current(context) }
     val calibrated = store.tap(route) != null || store.loopback(route) != null
 
-    val times = remember(speed) { Timing.expected(song, speed.toDouble()).times }
-    val beats = remember(speed) { Timing.beatTimes(song.tempoMap, song.endTime).map { it / speed }.toDoubleArray() }
+    val times = remember(speed, song) { Timing.expected(song, speed.toDouble()).times }
+    val beats = remember(speed, song) { Timing.beatTimes(song.tempoMap, song.endTime).map { it / speed }.toDoubleArray() }
     val barEvery = song.timeSig.firstOrNull()?.num ?: 4
 
     fun start() {
@@ -163,13 +170,13 @@ private fun PlayContent(song: Song, songId: String, onBack: () -> Unit, onCalibr
         val due = if (stopRequested) Timing.firstAtOrAfter(times, songTime) else times.size
         val s = summarize(all.filter { it.index < due }, due) { song.events[it].isChord }
         finished = !stopRequested
-        if (finished) newBest = progress.record(songId, s)
+        if (finished) newBest = progress.record(version.progressKey(songId), s)
         summary = s
         phase = Phase.RESULTS
     }
 
     when (phase) {
-        Phase.SETUP -> Setup(song, progress.best(songId), speed, { speed = it }, clickThrough, { clickThrough = it }, ready, error,
+        Phase.SETUP -> Setup(song, versions, versionIdx, { versionIdx = it }, versions.map { progress.best(it.progressKey(songId)) }, speed, { speed = it }, clickThrough, { clickThrough = it }, ready, error,
             speakerTip = clickThrough && route == AudioRoute.SPEAKER, calibrated = calibrated, routeLabel = route.label,
             onBack = onBack, onCalibrate = onCalibrate, onStart = { start() },
             overview = { SongMinimap(song, times, -1.0, song.endTime / speed, emptyMap(), it) }) {
@@ -190,7 +197,7 @@ private fun PlayContent(song: Song, songId: String, onBack: () -> Unit, onCalibr
 
 @Composable
 private fun Setup(
-    song: Song, best: ProgressStore.Best?, speed: Float, onSpeed: (Float) -> Unit, clickThrough: Boolean, onClick: (Boolean) -> Unit,
+    song: Song, versions: List<Version>, selected: Int, onSelect: (Int) -> Unit, bests: List<ProgressStore.Best?>, speed: Float, onSpeed: (Float) -> Unit, clickThrough: Boolean, onClick: (Boolean) -> Unit,
     ready: Boolean, error: String?, speakerTip: Boolean, calibrated: Boolean, routeLabel: String,
     onBack: () -> Unit, onCalibrate: () -> Unit, onStart: () -> Unit, overview: @Composable (Modifier) -> Unit,
     preview: @Composable (Modifier) -> Unit,
@@ -206,23 +213,18 @@ private fun Setup(
                 Text(song.artist.ifEmpty { "Mu originals" }, color = MuColors.textDim)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    LevelBars(difficulty(song))
                     Pill(durationText(song.endTime))
-                    if (song.chordCount > 0) Pill("${song.chordCount} chords")
+                    Pill("${song.events.size} notes")
+                    bests[selected]?.let { Pill("Best ${it.pct}%", MuColors.star, MuColors.star.copy(alpha = 0.14f)) }
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color(0x14FFFFFF)).padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Stars(best?.stars ?: 0, size = 24.dp)
-            Spacer(Modifier.width(12.dp))
-            Text(if (best != null) "Your best: ${best.pct}%" else "Earn up to 3 stars", color = MuColors.text, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("${song.events.size} notes", color = MuColors.textMuted, fontSize = 13.sp)
-        }
+        VersionPicker(versions, selected, bests, onSelect)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             preview(Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(24.dp)).border(1.dp, MuColors.stroke, RoundedCornerShape(24.dp)))
             overview(Modifier.fillMaxWidth().height(40.dp))
         }
+        HardnessCard(versions[selected].profile)
 
         MuCard(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -264,6 +266,65 @@ private fun Setup(
         if (!calibrated) Banner("Not calibrated for $routeLabel: timing may be off by tens of ms.", MuColors.ok, action = "Calibrate", onAction = onCalibrate)
         if (error != null) Banner(error, MuColors.wrong)
         ChunkyButton(if (ready) "Start" else "Starting audio…", onStart, Modifier.fillMaxWidth(), icon = Icons.Filled.PlayArrow, enabled = ready, height = 66.dp)
+    }
+}
+
+@Composable
+private fun VersionPicker(versions: List<Version>, selected: Int, bests: List<ProgressStore.Best?>, onSelect: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeader("Version", trailing = "${versions.size} of 3")
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            versions.forEachIndexed { i, v ->
+                val sel = i == selected
+                val c = levelColor(v.profile.level)
+                Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp))
+                    .background(if (sel) c.copy(alpha = 0.13f) else MuColors.surface)
+                    .border(if (sel) 2.dp else 1.dp, if (sel) c else MuColors.stroke, RoundedCornerShape(18.dp))
+                    .clickable { onSelect(i) }.padding(12.dp)) {
+                    Text(v.level.title, style = MaterialTheme.typography.titleSmall, color = MuColors.text, maxLines = 1)
+                    Text("Level ${v.profile.level}", color = c, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Stars(bests[i]?.stars ?: 0, size = 14.dp)
+                }
+            }
+        }
+        Text(versions[selected].level.blurb, color = MuColors.textDim, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** Level badge plus each difficulty factor with a 5-step meter and a plain explanation. */
+@Composable
+private fun HardnessCard(p: DifficultyProfile) {
+    val c = levelColor(p.level)
+    MuCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(54.dp).clip(CircleShape).background(c.copy(alpha = 0.15f)).border(2.dp, c, CircleShape), contentAlignment = Alignment.Center) {
+                Text("${p.level}", color = c, fontSize = 24.sp, fontWeight = FontWeight.Black)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text("WHAT MAKES IT HARD", style = OverlineStyle)
+                Text("${p.label} · level ${p.level} of 10", style = MaterialTheme.typography.titleMedium, color = MuColors.text)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        for (f in p.factors()) Column(Modifier.padding(vertical = 7.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(f.title, style = MaterialTheme.typography.titleSmall, color = MuColors.text, modifier = Modifier.weight(1f))
+                Meter(f.amount)
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(f.detail, color = MuColors.textDim, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun Meter(amount: Float) {
+    val lit = if (amount <= 0f) 0 else (amount * 5).roundToInt().coerceIn(1, 5)
+    val c = levelColor(lit * 2)
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        for (i in 0 until 5) Box(Modifier.size(width = 16.dp, height = 6.dp).clip(RoundedCornerShape(3.dp)).background(if (i < lit) c else Color(0x1FFFFFFF)))
     }
 }
 

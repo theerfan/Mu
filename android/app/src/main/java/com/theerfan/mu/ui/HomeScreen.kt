@@ -56,16 +56,13 @@ import androidx.compose.ui.unit.sp
 import com.theerfan.mu.audio.AudioRoute
 import com.theerfan.mu.audio.CalibrationStore
 import com.theerfan.mu.play.ProgressStore
-import com.theerfan.mu.song.Song
+import com.theerfan.mu.song.Arrangements
 import com.theerfan.mu.song.SongEntry
 import com.theerfan.mu.song.SongRepository
 import java.time.LocalTime
 
-/** 1–5 from notes per second; chords count a little extra. */
-fun difficulty(song: Song): Int {
-    val nps = (song.events.size + 0.5 * song.chordCount) / maxOf(song.endTime, 1.0)
-    return when { nps < 0.8 -> 1; nps < 1.5 -> 2; nps < 2.5 -> 3; nps < 4.0 -> 4; else -> 5 }
-}
+/** Colour for a 1–10 difficulty level: green, yellow, orange, red. */
+fun levelColor(level: Int) = when { level <= 3 -> MuColors.primary; level <= 6 -> MuColors.star; level <= 8 -> MuColors.orange; else -> MuColors.wrong }
 
 fun durationText(sec: Double) = "%d:%02d".format(sec.toInt() / 60, sec.toInt() % 60)
 
@@ -73,6 +70,7 @@ fun durationText(sec: Double) = "%d:%02d".format(sec.toInt() / 60, sec.toInt() %
 fun HomeScreen(repo: SongRepository, version: Int, onChanged: () -> Unit, onPlay: (String) -> Unit, onTuner: () -> Unit, onCalibrate: () -> Unit) {
     val context = LocalContext.current
     val songs = remember(version) { repo.list() }
+    val levels = remember(songs) { songs.associate { e -> e.id to Arrangements.versions(e.song).map { it.profile.level } } }
     val progress = remember { ProgressStore(context) }
     val calibration = remember { CalibrationStore(context) }
     val route = remember { AudioRoute.current(context) }
@@ -108,7 +106,7 @@ fun HomeScreen(repo: SongRepository, version: Int, onChanged: () -> Unit, onPlay
                 }
             }
             item { SectionHeader("Your songs", Modifier.padding(top = 14.dp), trailing = "${songs.size}") }
-            items(songs, key = { it.id }) { e -> SongRow(e, progress.best(e.id), onClick = { onPlay(e.id) }, onDelete = { toDelete = e }) }
+            items(songs, key = { it.id }) { e -> SongRow(e, progress.best(e.id), levels[e.id].orEmpty(), onClick = { onPlay(e.id) }, onDelete = { toDelete = e }) }
             item { ImportTile(importSong) }
         }
     }
@@ -195,7 +193,7 @@ private fun ToolTile(title: String, subtitle: String, colors: Pair<Color, Color>
 }
 
 @Composable
-private fun SongRow(e: SongEntry, best: ProgressStore.Best?, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun SongRow(e: SongEntry, best: ProgressStore.Best?, levels: List<Int>, onClick: () -> Unit, onDelete: () -> Unit) {
     val song = e.song
     MuCard(Modifier.fillMaxWidth(), onClick = onClick, padding = 12.dp, shape = RoundedCornerShape(22.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -206,8 +204,9 @@ private fun SongRow(e: SongEntry, best: ProgressStore.Best?, onClick: () -> Unit
                 Text(song.artist.ifEmpty { if (e.bundled) "Mu originals" else "Imported" }, color = MuColors.textMuted, fontSize = 13.sp, maxLines = 1)
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    LevelBars(difficulty(song))
-                    Pill("${song.tempoMap.firstOrNull()?.bpm?.toInt() ?: 0} bpm")
+                    val lo = levels.minOrNull() ?: 1; val hi = levels.maxOrNull() ?: lo
+                    LevelBars((hi + 1) / 2)
+                    Pill(if (lo == hi) "Lv $hi" else "Lv $lo–$hi", levelColor(hi), levelColor(hi).copy(alpha = 0.14f))
                     Pill(durationText(song.endTime))
                 }
             }
@@ -229,7 +228,7 @@ private fun SongRow(e: SongEntry, best: ProgressStore.Best?, onClick: () -> Unit
 /** Five ascending bars, the first `level` lit. */
 @Composable
 fun LevelBars(level: Int, modifier: Modifier = Modifier) {
-    val color = when (level) { 1, 2 -> MuColors.primary; 3 -> MuColors.star; else -> MuColors.wrong }
+    val color = levelColor(level * 2)
     Row(modifier.height(14.dp).padding(end = 2.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
         for (i in 1..5) Box(Modifier.width(4.dp).height((4 + i * 2).dp).clip(RoundedCornerShape(2.dp)).background(if (i <= level) color else Color(0x26FFFFFF)))
     }
