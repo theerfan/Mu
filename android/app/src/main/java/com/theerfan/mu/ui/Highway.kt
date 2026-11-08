@@ -145,7 +145,7 @@ fun Highway(
         drawLine(MuColors.primary.copy(alpha = 0.25f), lineA, lineB, 10.dp.toPx())
         drawLine(Color.White, lineA, lineB, 3.5f)
         val noteW = 34.dp.toPx(); val maxSpacing = spacing(0f)
-        fun noteSize(v: Float) = Size(noteW * (0.75f + 0.25f * spacing(v) / maxSpacing), spacing(v) * 0.66f)
+        fun noteSize(v: Float) = Size(noteW * (0.75f + 0.25f * spacing(v) / maxSpacing), spacing(v) * 0.72f)
         for (s in 1..strings) {
             val v = vOf(s); val ns = noteSize(v)
             skewed(sx(nowU, v), sy(v), k) {
@@ -186,7 +186,6 @@ fun Highway(
                     val ns = noteSize(v); val nh = ns.height; val nw = ns.width
                     val lane = MuColors.strings[(n.string - 1) % 6]
                     val col = j?.let { judgementColor(it) } ?: lane
-                    if (tailW > nw) drawPath(quad(ue, ue + tailW, v - 0.12f / strings, v + 0.12f / strings), col.copy(alpha = 0.38f * fade))
                     if (hit && age in 0f..0.45f) {
                         val kk = age / 0.45f
                         skewed(sx(nowU, v), cy, k) {
@@ -194,18 +193,28 @@ fun Highway(
                                 Size(nh * (1.4f + 3.2f * kk), nh * (1f + 2.2f * kk)), style = Stroke(4f * (1f - kk) + 1f))
                         }
                     }
+                    // The note is one thick bar for its whole length (number on the head only). Whatever has
+                    // crossed the timing line is played and dims; what is still to play stays full thickness.
                     skewed(cx, cy, k) {
-                        val r = CornerRadius(nh / 2)
-                        val glowA = if (j == null && ue in nowU - nw..nowU + nw * 3) 0.4f else 0.14f
-                        drawRoundRect(col.copy(alpha = glowA * fade), Offset(-nw / 2 - 6f, -nh / 2 - 6f), Size(nw + 12f, nh + 12f), CornerRadius(nh / 2 + 6f))
-                        drawRoundRect(lerp(col, Color.Black, 0.55f).copy(alpha = fade), Offset(-nw / 2, -nh / 2 + 5f * sc), Size(nw, nh), r)  // slab side
-                        drawRoundRect(col.copy(alpha = fade), Offset(-nw / 2, -nh / 2), Size(nw, nh), r)
-                        drawRoundRect(lerp(col, Color.White, 0.5f).copy(alpha = 0.5f * fade), Offset(-nw / 2 + nh * 0.2f, -nh * 0.4f),
-                            Size(nw - nh * 0.4f, nh * 0.22f), CornerRadius(nh * 0.11f))
+                        val x0 = -nw / 2; val x1 = maxOf(nw / 2, tailW)
+                        val split = (nowU - ue).coerceIn(x0, x1)          // local x of the timing line
+                        val gone = ((ue + x1 - gutter) / (nowU - gutter)).coerceIn(0f, 1f)   // fades out towards the gutter
+                        fun bar(a: Float, b: Float, alpha: Float, glow: Boolean) {
+                            if (b - a < 1f || alpha <= 0f) return
+                            val r = CornerRadius(minOf(nh / 2, (b - a) / 2))
+                            if (glow) drawRoundRect(col.copy(alpha = (if (j == null && ue < nowU + nw * 3) 0.4f else 0.14f) * alpha),
+                                Offset(a - 6f, -nh / 2 - 6f), Size(b - a + 12f, nh + 12f), CornerRadius(r.x + 6f))
+                            drawRoundRect(lerp(col, Color.Black, 0.55f).copy(alpha = alpha), Offset(a, -nh / 2 + 5f * sc), Size(b - a, nh), r)   // slab side
+                            drawRoundRect(col.copy(alpha = alpha), Offset(a, -nh / 2), Size(b - a, nh), r)
+                            drawRoundRect(lerp(col, Color.White, 0.5f).copy(alpha = 0.5f * alpha), Offset(a + nh * 0.2f, -nh * 0.4f),
+                                Size(maxOf(0f, b - a - nh * 0.4f), nh * 0.22f), CornerRadius(nh * 0.11f))
+                        }
+                        bar(x0, split, 0.32f * gone, glow = false)        // already played
+                        bar(split, x1, 1f, glow = true)                   // still to play
                         fretText[n.fret]?.let {
                             val ts = (nh / it.size.height * 0.95f).coerceAtMost(1.15f)
                             withTransform({ scale(ts, ts, Offset.Zero) }) {
-                                drawText(it, topLeft = Offset(-it.size.width / 2f, -it.size.height / 2f), alpha = fade)
+                                drawText(it, topLeft = Offset(-it.size.width / 2f, -it.size.height / 2f), alpha = if (split > 0f) 0.4f * gone else 1f)
                             }
                         }
                     }
