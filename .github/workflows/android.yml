@@ -40,7 +40,22 @@ jobs:
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
       - name: Unit tests + debug APK
         working-directory: android
-        run: ./gradlew testDebugUnitTest assembleDebug --console=plain
+        run: |
+          set -euo pipefail
+          # services.gradle.org sometimes accepts the connection and then stalls before the
+          # distribution headers arrive. Retry only that download; a real test failure stops here.
+          for attempt in 1 2 3; do
+            if ./gradlew testDebugUnitTest assembleDebug --console=plain; then
+              exit 0
+            fi
+            if find "${HOME}/.gradle/wrapper/dists" -type f -path '*/gradle-8.11.1/bin/gradle' 2>/dev/null | grep -q .; then
+              echo "Gradle started, so this is a build failure rather than a distribution download."
+              exit 1
+            fi
+            echo "Gradle distribution download failed (attempt ${attempt}); retrying."
+            sleep 10
+          done
+          exit 1
       - uses: actions/upload-artifact@v7
         with:
           name: mu-debug-apk
