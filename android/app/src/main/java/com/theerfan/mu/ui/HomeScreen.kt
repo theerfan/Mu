@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -67,7 +68,7 @@ fun levelColor(level: Int) = when { level <= 3 -> MuColors.primary; level <= 6 -
 fun durationText(sec: Double) = "%d:%02d".format(sec.toInt() / 60, sec.toInt() % 60)
 
 @Composable
-fun HomeScreen(repo: SongRepository, version: Int, onChanged: () -> Unit, onPlay: (String) -> Unit, onTuner: () -> Unit, onCalibrate: () -> Unit) {
+fun HomeScreen(repo: SongRepository, version: Int, onChanged: () -> Unit, onPlay: (String) -> Unit, onTuner: () -> Unit, onCalibrate: () -> Unit, onSearch: () -> Unit) {
     val context = LocalContext.current
     val songs = remember(version) { repo.list() }
     val levels = remember(songs) { songs.associate { e -> e.id to Arrangements.versions(e.song).map { it.profile.level } } }
@@ -97,6 +98,7 @@ fun HomeScreen(repo: SongRepository, version: Int, onChanged: () -> Unit, onPlay
                     Text("Ready to play?", style = MaterialTheme.typography.headlineLarge, color = MuColors.text)
                 }
             }
+            item { SearchEntry(onSearch) }
             featured?.let { f -> item { FeaturedCard(f, progress.best(f.id), resume = f.id == progress.lastSongId, onPlay = { onPlay(f.id) }) } }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -123,6 +125,18 @@ fun HomeScreen(repo: SongRepository, version: Int, onChanged: () -> Unit, onPlay
             "First time: run Calibrate once per output (speaker / headphones), then tune up with the Tuner.",
         "Got it", onConfirm = { help = false }, onDismiss = { help = false },
     )
+}
+
+/** Looks like a search field; opens the online search. */
+@Composable
+private fun SearchEntry(onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MuColors.surface).border(1.dp, MuColors.stroke, RoundedCornerShape(18.dp))
+        .clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Filled.Search, null, tint = MuColors.textDim)
+        Spacer(Modifier.width(12.dp))
+        Text("Search songs and tabs online", color = MuColors.textMuted, modifier = Modifier.weight(1f))
+        Pill("Songsterr · Classtab", MuColors.textMuted)
+    }
 }
 
 @Composable

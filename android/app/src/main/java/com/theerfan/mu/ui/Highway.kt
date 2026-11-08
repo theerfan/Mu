@@ -73,6 +73,11 @@ fun Highway(
         song.events.mapNotNull { it.chord }.distinct().associateWith { measurer.measure(it, TextStyle(color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Black)) }
     }
     val strings = song.stringCount
+    // a short gap typical of the busy parts (15th percentile): the scroll speed keeps notes that close apart
+    val denseGap = remember(times) {
+        val gaps = times.toList().zipWithNext { a, b -> b - a }.filter { it > 0.03 }.sorted()
+        if (gaps.isEmpty()) 1.0 else gaps[(gaps.size * 0.15).toInt().coerceAtMost(gaps.size - 1)]
+    }
     // tuning is low → high; string 1 is the highest
     val stringText = remember(song, measurer) {
         (1..strings).map { s ->
@@ -95,8 +100,9 @@ fun Highway(
         fun sy(v: Float) = yNear - depth(v)
         val gutter = 30.dp.toPx()
         val nowU = gutter + (w - gutter) * 0.16f
-        // pixels per second: about HIGHWAY_LOOKAHEAD_SEC of look-ahead, within limits that keep notes readable
-        val pps = ((w - nowU) / HIGHWAY_LOOKAHEAD_SEC).coerceIn(150.dp.toPx(), 280.dp.toPx())
+        // pixels per second: about HIGHWAY_LOOKAHEAD_SEC of look-ahead, but fast enough that busy passages don't overlap
+        val pps = maxOf(((w - nowU) / HIGHWAY_LOOKAHEAD_SEC).coerceIn(150.dp.toPx(), 280.dp.toPx()), (38.dp.toPx() / denseGap).toFloat())
+            .coerceAtMost(480.dp.toPx())
         fun u(t: Double) = nowU + ((t - songTime) * pps).toFloat()
         val tMin = songTime - nowU / pps - 0.5; val tMax = songTime + (w - nowU) / pps + 0.5
         fun quad(u0: Float, u1: Float, v0: Float, v1: Float) = Path().apply {

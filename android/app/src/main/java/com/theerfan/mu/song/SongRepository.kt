@@ -2,6 +2,7 @@ package com.theerfan.mu.song
 
 import android.content.Context
 import android.net.Uri
+import kotlinx.serialization.json.Json
 import java.io.File
 import java.security.MessageDigest
 
@@ -32,6 +33,21 @@ class SongRepository(private val context: Context) {
         else -> null
     }
 
+    /** Stores a song built in the app (online import, text tab). */
+    fun save(song: Song): SongEntry = importText(Json.encodeToString(Song.serializer(), song))
+
+    /**
+     * Imports Mu song JSON, or failing that a plain-text guitar tab (titled [fallbackTitle] or its first line).
+     * Throws SongFormatException when it is neither.
+     */
+    fun importAny(text: String, fallbackTitle: String? = null): SongEntry = try {
+        importText(text)
+    } catch (e: SongFormatException) {
+        if (text.trimStart().startsWith("{")) throw e
+        val title = fallbackTitle?.takeIf { it.isNotBlank() } ?: text.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() && '|' !in it }?.take(60) ?: "Text tab"
+        save(AsciiTab.parse(text, title))
+    }
+
     /** Validates and stores a song; returns the stored entry. Throws SongFormatException on bad input. */
     fun importText(text: String): SongEntry {
         val song = SongParser.parse(text)
@@ -46,7 +62,7 @@ class SongRepository(private val context: Context) {
         val text = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
             ?: throw SongFormatException("Could not read $uri")
         if (text.length > 20_000_000) throw SongFormatException("File too large")
-        return importText(text)
+        return importAny(text)
     }
 
     fun delete(id: String) { if (id.startsWith("file:")) File(dir, id.removePrefix("file:")).delete() }

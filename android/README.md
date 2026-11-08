@@ -27,6 +27,23 @@ between a CI APK and a locally built one.
 3. Pick a song, set the tempo (50–125 %), toggle the metronome, **Start**.
 
 ## Songs
+**Online search** (home screen → *Search songs and tabs online*): searches Songsterr (band songs; pick your guitar
+part, and the drums, bass, vocal melody and up to two other guitars become the synth band) and Classtab (~4000 free
+classical tabs in plain text). Results are converted on the phone (`online/Online.kt`, `song/AsciiTab.kt`) and saved
+with your songs, so they work offline afterwards. Songsterr is used through its unofficial web API: it can change or
+block clients at any time, and it's for personal practice only. You can also *Share* a Songsterr/Classtab link or any
+plain-text tab to Mu.
+
+**Versions**: every song gets *Basics* (bass note on chord changes, notes on the beat), *Simplified* (3-string shapes
+from the real voicing, fast runs thinned) and *Full*, each with a 1–10 level and a "what makes it hard" breakdown
+(speed, chord types, change rate, notes at once, fretboard range, techniques) — `song/Arrangement.kt`.
+
+**Backing** (per song, on the setup screen): *Band* = the song's own other instruments when it has them, else a
+generated bass + drum groove; *Recording* = an audio file you pick (decoded on the phone, slowed with the tempo
+without changing pitch; set where the first tab note falls in it); *Guide* = your part played softly, either always or
+only after you miss notes. Rendered by the C++ synth in `core/src/synth.cpp`. On the phone speaker the mic hears it
+too, so use headphones for fair scoring.
+
 Bundled (all self-authored): *Mu Chord Etude* (open strings, open chords incl. C/Cmaj7, mixed bars; written by
 `importer/samples/make_chord_etude.py`), *Mu Exercise 1* and *2* (the importer test pieces).
 
@@ -80,7 +97,7 @@ UI (Compose, every frame): song time from the output timestamp, polls judgements
 ## Known gaps
 * Not yet run on a real phone or emulator (the box's emulator didn't boot), so the Oboe/timestamp path, effect
   disabling, and the UI are only compile-checked. Expect device-specific fixes (input preset fallback, buffer sizes).
-* No backing-track playback yet (output is clicks only); no section looping, auto slow-down or saved history.
+* No section looping or auto slow-down yet. Text tabs carry no rhythm: timing comes from column spacing within each bar.
 * With the phone speaker, the mic hears the metronome; clicks can register as extra/wrong onsets. Use headphones or
   turn the in-song metronome off. Same for tap-along calibration.
 * The highway is Compose Canvas (fine at 60 fps for these songs); a GPU renderer would be needed only for very

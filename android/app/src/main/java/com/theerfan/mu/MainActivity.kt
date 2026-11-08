@@ -24,7 +24,13 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.lifecycleScope
+import com.theerfan.mu.online.SharedLinks
 import com.theerfan.mu.song.SongRepository
+import com.theerfan.mu.ui.SearchScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.theerfan.mu.ui.CalibrationScreen
 import com.theerfan.mu.ui.HomeScreen
 import com.theerfan.mu.ui.MuTheme
@@ -68,7 +74,12 @@ class MainActivity : ComponentActivity() {
                             onChanged = { libraryVersion.intValue++ },
                             onPlay = { id -> nav.navigate("play/" + Uri.encode(id)) },
                             onTuner = { nav.navigate("tuner") }, onCalibrate = { nav.navigate("calibrate") },
+                            onSearch = { nav.navigate("search") },
                         )
+                    }
+                    composable("search") {
+                        SearchScreen(repo, onBack = { nav.popBackStack() }, onChanged = { libraryVersion.intValue++ },
+                            onOpen = { id -> nav.navigate("play/" + Uri.encode(id)) { popUpTo("home") } })
                     }
                     composable("tuner") { TunerScreen(hasMic = micGranted.value, requestMic = ::requestMic, onBack = { nav.popBackStack() }) }
                     composable("calibrate") { CalibrationScreen(hasMic = micGranted.value, requestMic = ::requestMic, onBack = { nav.popBackStack() }) }
@@ -101,9 +112,10 @@ class MainActivity : ComponentActivity() {
                     @Suppress("DEPRECATION")
                     val uri: Uri? = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
                     else intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                     when {
                         uri != null -> repo.importUri(uri)
-                        intent.getStringExtra(Intent.EXTRA_TEXT) != null -> repo.importText(intent.getStringExtra(Intent.EXTRA_TEXT)!!)
+                        text != null -> SharedLinks.find(text)?.let { importLink(it); return } ?: repo.importAny(text, intent.getStringExtra(Intent.EXTRA_SUBJECT))
                         else -> return
                     }
                 }
@@ -114,5 +126,16 @@ class MainActivity : ComponentActivity() {
         result.onSuccess { Toast.makeText(this, "Imported “${it.song.title}”", Toast.LENGTH_SHORT).show(); libraryVersion.intValue++ }
             .onFailure { Toast.makeText(this, "Import failed: ${it.message}", Toast.LENGTH_LONG).show() }
         setIntent(Intent(Intent.ACTION_MAIN))
+    }
+
+    /** A shared Songsterr/Classtab link: download and convert in the background. */
+    private fun importLink(link: SharedLinks.Link) {
+        Toast.makeText(this, "Downloading tab…", Toast.LENGTH_SHORT).show()
+        setIntent(Intent(Intent.ACTION_MAIN))
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) { runCatching { repo.save(SharedLinks.download(link)) } }
+                .onSuccess { Toast.makeText(this@MainActivity, "Imported “${it.song.title}”", Toast.LENGTH_SHORT).show(); libraryVersion.intValue++ }
+                .onFailure { Toast.makeText(this@MainActivity, "Import failed: ${it.message}", Toast.LENGTH_LONG).show() }
+        }
     }
 }

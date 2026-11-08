@@ -71,7 +71,7 @@ object Arrangements {
                 val notes = e.notes.sortedByDescending { it.string }.take(3).sortedBy { it.string }
                 val reduced = e.copy(notes = notes)
                 // the cut-down shape may be a different chord (Cmaj7 → C, Am → A5): name what is actually played
-                if (notes.map { it.midi % 12 }.toSet() == e.notes.map { it.midi % 12 }.toSet()) reduced else reduced.copy(chord = Difficulty.chordName(reduced))
+                if (e.chord == null || notes.map { it.midi % 12 }.toSet() == e.notes.map { it.midi % 12 }.toSet()) reduced else reduced.copy(chord = Difficulty.chordName(reduced))
             } else e
             lastT = e.t
         }
@@ -173,15 +173,22 @@ object Difficulty {
         for (i in ev.indices) { while (ev[i].t - ev[j].t > 4.0) j++; peak = maxOf(peak, (i - j + 1) / 4.0) }
         peak = maxOf(peak, minOf(avg, ev.size / 4.0))
         val chordEvents = ev.filter { it.isChord }
+        // tabs that name their chords (chord name on the first strum) are judged by those names; partial strums in
+        // between belong to the named chord. Unnamed tabs fall back to recognisable shapes (major, minor, power).
+        val named = chordEvents.any { it.chord != null }
         val chords = LinkedHashMap<ChordKind, MutableList<String>>()
         for (e in chordEvents) {
-            val name = e.chord ?: chordName(e)
+            val name = e.chord ?: if (named) null else chordName(e).takeIf { '(' !in it }
+            if (name == null) continue
             val list = chords.getOrPut(chordKind(e)) { mutableListOf() }
             if (name !in list) list += name
         }
-        // chord changes: times where the pitch-class set differs from the previous chord
-        val changes = ArrayList<Double>(); var prev: Set<Int>? = null
-        for (e in chordEvents) { val pcs = e.notes.map { it.midi % 12 }.toSet(); if (pcs != prev) { changes += e.t; prev = pcs } }
+        // chord changes: a new name (named tabs) or a new pitch-class set (unnamed)
+        val changes = ArrayList<Double>(); var prev: Any? = null
+        for (e in chordEvents) {
+            val key: Any = if (named) e.chord ?: continue else e.notes.map { it.midi % 12 }.toSet()
+            if (key != prev) { changes += e.t; prev = key }
+        }
         val gaps = changes.zipWithNext { a, b -> b - a }.filter { it > 0.05 }
         val frets = ev.flatMap { e -> e.notes.map { it.fret } }
         val positions = ev.mapNotNull { e -> e.notes.map { it.fret }.filter { it > 0 }.takeIf { it.isNotEmpty() }?.average() }
