@@ -97,5 +97,49 @@ FN(jint, finishPlay)(JNIEnv* env, jobject, jfloatArray out) {
   const int max = env->GetArrayLength(out) / kJudgementFloats; std::vector<mu::Judgement> j(max);
   int n = eng().finishPlay(j.data(), max); packJudgements(env, out, j.data(), n); return n;
 }
+// Renders the band (synth notes, or a decoded recording brought to the engine rate and practice tempo) and the
+// guide (your part on a plucked string) and hands both to the engine. Runs off the UI thread; can take a moment.
+FN(void, renderBacking)(JNIEnv* env, jobject, jdoubleArray bT, jdoubleArray bDur, jintArray bMidi, jfloatArray bVel, jintArray bVoice,
+                        jdoubleArray gT, jdoubleArray gDur, jintArray gMidi, jfloatArray gVel, jdouble lengthSec, jdouble prerollSec,
+                        jshortArray pcm, jint pcmRate, jdouble speed, jdouble recStartSec) {
+  std::lock_guard<std::mutex> l(gMutex);
+  const int sr = eng().sampleRate();
+  const long long len = (long long)((lengthSec + prerollSec + 2.0) * sr);
+  auto notes = [&](jdoubleArray t, jdoubleArray d, jintArray m, jfloatArray v, jintArray voice, mu::Voice def) {
+    const jsize n = env->GetArrayLength(t);
+    std::vector<double> tt(n), dd(n); std::vector<jint> mm(n), vv(n, (jint)def); std::vector<float> ve(n);
+    env->GetDoubleArrayRegion(t, 0, n, tt.data()); env->GetDoubleArrayRegion(d, 0, n, dd.data());
+    env->GetIntArrayRegion(m, 0, n, mm.data()); env->GetFloatArrayRegion(v, 0, n, ve.data());
+    if (voice) env->GetIntArrayRegion(voice, 0, n, vv.data());
+    std::vector<mu::SynthNote> out(n);
+    for (jsize i = 0; i < n; ++i) out[i] = {tt[i] + prerollSec, dd[i], (int)mm[i], ve[i], (mu::Voice)vv[i]};
+    return out;
+  };
+  std::vector<int16_t> band, guide;
+  if (pcm) {
+    const jsize n = env->GetArrayLength(pcm);
+    std::vector<jshort> s(n); env->GetShortArrayRegion(pcm, 0, n, s.data());
+    std::vector<float> f(n); for (jsize i = 0; i < n; ++i) f[i] = s[i] / 32768.f;
+    auto rs = mu::resampleLinear(f.data(), n, pcmRate, sr);
+    auto st = mu::timeStretch(rs.data(), (long long)rs.size(), sr, speed);
+    // band sample j is song time j/sr - preroll; the recording reaches song time 0 at recStartSec (100 % tempo)
+    const long long shift = (long long)std::llround((recStartSec / speed - prerollSec) * sr);
+    std::vector<float> b((size_t)len, 0.f);
+    for (long long j = 0; j < len; ++j) { const long long k = j + shift; if (k >= 0 && k < (long long)st.size()) b[(size_t)j] = st[(size_t)k]; }
+    band = mu::toInt16(b, 0.9f);
+  } else {
+    auto bn = notes(bT, bDur, bMidi, bVel, bVoice, mu::Voice::Pluck);
+    std::vector<float> b((size_t)len, 0.f);
+    mu::renderNotes(bn.data(), (int)bn.size(), sr, b.data(), len);
+    band = mu::toInt16(b, 0.8f);
+  }
+  auto gn = notes(gT, gDur, gMidi, gVel, nullptr, mu::Voice::Pluck);
+  std::vector<float> g((size_t)len, 0.f);
+  mu::renderNotes(gn.data(), (int)gn.size(), sr, g.data(), len);
+  guide = mu::toInt16(g, 0.8f);
+  eng().setBacking(std::move(band), std::move(guide), prerollSec);
+}
+FN(void, setBackingGains)(JNIEnv*, jobject, jfloat band, jfloat guide) { eng().setBackingGains(band, guide); }
+
 FN(void, stopAll)(JNIEnv*, jobject) { std::lock_guard<std::mutex> l(gMutex); eng().stopAll(); }
 FN(jdouble, songTime)(JNIEnv*, jobject) { return eng().songTime(); }

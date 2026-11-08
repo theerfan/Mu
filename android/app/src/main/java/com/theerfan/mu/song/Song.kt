@@ -23,6 +23,7 @@ data class Song(
     val timeSig: List<TimeSig> = listOf(TimeSig(0, 4, 4)),
     val sections: List<Section> = emptyList(),
     val events: List<SongEvent> = emptyList(),
+    val backing: BackingInfo? = null,
 ) {
     val stringCount: Int get() = tuning.size
     val endTime: Double get() = maxOf(duration ?: 0.0, events.maxOfOrNull { it.t + it.dur } ?: 0.0)
@@ -36,6 +37,12 @@ data class Song(
 @Serializable data class TempoPoint(val beat: Double, val bpm: Double)
 @Serializable data class TimeSig(val bar: Int = 0, val num: Int = 4, val den: Int = 4)
 @Serializable data class Section(val name: String, val start: Double, val end: Double)
+
+/** Other instruments of the source (bass, drums, other guitars, keys), played by the synth as the band. */
+@Serializable data class BackingInfo(val file: String? = null, val offsetSec: Double = 0.0, val parts: List<BackingPart> = emptyList())
+
+/** kind: "bass" | "drums" | "keys" | "guitar"; notes: [t, dur, midi, velocity 0..1] (drums: GM percussion key as midi). */
+@Serializable data class BackingPart(val name: String = "", val kind: String = "guitar", val notes: List<List<Double>> = emptyList())
 
 @Serializable
 data class SongNote(val string: Int, val fret: Int, val midi: Int, val tech: List<JsonElement> = emptyList())

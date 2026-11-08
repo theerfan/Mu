@@ -124,6 +124,10 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(oboe::AudioStream*, void* dat
   const long long* cf = bank >= 0 ? clickFrame_[bank].data() : nullptr;
   const uint8_t* ca = bank >= 0 ? clickAccent_[bank].data() : nullptr;
   const float gain = clickGain_.load(std::memory_order_relaxed);
+  const bool backing = backingReady_.load(std::memory_order_acquire) && backingPlaying_.load(std::memory_order_relaxed);
+  const long long bOrigin = songStartFrame_.load(std::memory_order_relaxed) - backingPreroll_;
+  const float bT = bandGain_.load(std::memory_order_relaxed), gT = guideGain_.load(std::memory_order_relaxed);
+  const long long nBand = (long long)band_.size(), nGuide = (long long)guide_.size();
   for (int i = 0; i < frames; ++i) {
     const long long f = framesWritten_ + i;
     while (clickCursor_ < cnt && cf[clickCursor_] <= f) {
@@ -135,7 +139,13 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(oboe::AudioStream*, void* dat
     }
     float s = 0.f;
     if (clickWave_ && clickPos_ < clickLen_) s = clickWave_[clickPos_++] * clickAmp_;
-    o[i] = s;
+    if (backing) {
+      bandG_ += 0.0005f * (bT - bandG_); guideG_ += 0.0005f * (gT - guideG_);   // ~40 ms glide, no zipper noise
+      const long long k = f - bOrigin;
+      if (k >= 0 && k < nBand) s += band_[(size_t)k] * (bandG_ / 32768.f);
+      if (k >= 0 && k < nGuide) s += guide_[(size_t)k] * (guideG_ / 32768.f);
+    }
+    o[i] = std::max(-1.f, std::min(1.f, s));
   }
   framesWritten_ += frames;
   framesWrittenA_.store(framesWritten_, std::memory_order_release);
@@ -261,6 +271,14 @@ void AudioEngine::scheduleClicks(const double* t, const bool* accent, int n, lon
   lastPublish = std::chrono::steady_clock::now();
 }
 
+void AudioEngine::setBacking(std::vector<int16_t>&& band, std::vector<int16_t>&& guide, double prerollSec) {
+  backingReady_.store(false, std::memory_order_release);
+  std::this_thread::sleep_for(std::chrono::milliseconds(60));  // the callback has stopped reading the old tracks
+  band_ = std::move(band); guide_ = std::move(guide); backingPreroll_ = (long long)std::llround(prerollSec * sr_);
+  bandG_ = guideG_ = 0.f;
+  backingReady_.store(true, std::memory_order_release);
+}
+
 void AudioEngine::startTuner() { setModeSync(Mode::Idle); setModeSync(Mode::Tuner); }
 
 bool AudioEngine::tuner(float out[4]) {
@@ -272,6 +290,7 @@ void AudioEngine::startClicks(const double* t, const bool* accent, int n, double
   setModeSync(Mode::Idle);
   const long long start = framesWrittenA_.load() + (long long)(leadInSec * sr_);
   songStartFrame_.store(start);
+  backingPlaying_.store(false);
   scheduleClicks(t, accent, n, start, gain);
   if (collect) { collector_->reset(); setModeSync(Mode::Calibrate); }
 }
@@ -293,6 +312,7 @@ bool AudioEngine::startPlay(const double* clickT, const bool* accent, int n, dou
   const long long start = framesWrittenA_.load() + (long long)(leadInSec * sr_);
   songStartFrame_.store(start);
   scheduleClicks(clickT, accent, n, start, gain);
+  backingPlaying_.store(true);
   return setModeSync(Mode::Play);
 }
 
@@ -304,6 +324,6 @@ int AudioEngine::finishPlay(Judgement* out, int max) {
   return k + play_->finish(out + k, max - k);
 }
 
-void AudioEngine::stopAll() { activeBank_.store(-1, std::memory_order_release); setModeSync(Mode::Idle); }
+void AudioEngine::stopAll() { activeBank_.store(-1, std::memory_order_release); backingPlaying_.store(false); setModeSync(Mode::Idle); }
 
 }  // namespace mu

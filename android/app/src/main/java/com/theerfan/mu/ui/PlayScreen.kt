@@ -66,7 +66,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberCoroutineScope
+import com.theerfan.mu.audio.AudioDecoder
 import com.theerfan.mu.audio.AudioRoute
+import com.theerfan.mu.audio.BackingBuilder
+import com.theerfan.mu.audio.BackingPrefs
+import com.theerfan.mu.audio.BandMode
+import com.theerfan.mu.audio.GuideMode
+import com.theerfan.mu.audio.SynthNotes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.theerfan.mu.audio.CalibrationStore
 import com.theerfan.mu.audio.NativeAudio
 import com.theerfan.mu.play.Judgement
@@ -90,6 +104,9 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 private enum class Phase { SETUP, PLAYING, RESULTS }
+
+/** Backing tracks start this long before song time 0, so a recording's intro can play during the count-in. */
+private const val BACKING_PREROLL_SEC = 4.0
 
 @Composable
 fun PlayScreen(repo: SongRepository, songId: String, hasMic: Boolean, requestMic: () -> Unit, onBack: () -> Unit, onCalibrate: () -> Unit) {
@@ -130,11 +147,54 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
     val route = remember(runId) { AudioRoute.current(context) }
     val calibrated = store.tap(route) != null || store.loopback(route) != null
 
+    // backing: band (synth or a recording), guide (your part), chosen per song
+    val scope = rememberCoroutineScope()
+    val bprefs = remember { BackingPrefs(context) }
+    var bandMode by remember { mutableStateOf(bprefs.band(songId)) }
+    var guideMode by remember { mutableStateOf(bprefs.guide(songId)) }
+    var bandVol by remember { mutableFloatStateOf(bprefs.volume(songId)) }
+    var recStart by remember { mutableFloatStateOf(bprefs.recStart(songId)) }
+    var recName by remember { mutableStateOf(bprefs.recordingName(songId)) }
+    var recPcm by remember { mutableStateOf<AudioDecoder.Pcm?>(null) }
+    var preparing by remember { mutableStateOf<String?>(null) }
+    var backingError by remember { mutableStateOf<String?>(null) }
+    var struggle by remember { mutableFloatStateOf(0f) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst()) c.getString(0) else null } ?: "Recording"
+            bprefs.setRecording(songId, uri, name); recName = name; recPcm = null; backingError = null
+            bandMode = BandMode.RECORDING; bprefs.set(songId, band = BandMode.RECORDING)
+        }
+    }
+
     val times = remember(speed, song) { Timing.expected(song, speed.toDouble()).times }
     val beats = remember(speed, song) { Timing.beatTimes(song.tempoMap, song.endTime).map { it / speed }.toDoubleArray() }
     val barEvery = song.timeSig.firstOrNull()?.num ?: 4
 
-    fun start() {
+    fun guideGain() = when (guideMode) { GuideMode.OFF -> 0f; GuideMode.ALWAYS -> 0.55f; GuideMode.AUTO -> 0.6f * struggle.coerceIn(0f, 1f) }
+
+    fun start() = scope.launch {
+        val sp = speed.toDouble()
+        preparing = if (bandMode == BandMode.RECORDING && recPcm == null) "Loading recording…" else "Preparing backing…"
+        backingError = null
+        val result = runCatching {
+            withContext(Dispatchers.Default) {
+                val pcm = if (bandMode == BandMode.RECORDING) recPcm ?: bprefs.recording(songId)?.let { AudioDecoder.decode(context, it) } else null
+                val band = if (bandMode == BandMode.SYNTH || (bandMode == BandMode.RECORDING && pcm == null)) BackingBuilder.band(base, sp) else SynthNotes.of(emptyList())
+                val guide = BackingBuilder.guide(song, sp)
+                NativeAudio.renderBacking(band.t, band.dur, band.midi, band.vel, band.voice, guide.t, guide.dur, guide.midi, guide.vel,
+                    song.endTime / sp, BACKING_PREROLL_SEC, pcm?.samples, pcm?.rate ?: 0, sp, recStart.toDouble())
+                pcm
+            }
+        }
+        preparing = null
+        result.onSuccess { if (it != null) recPcm = it }
+            .onFailure { backingError = "Backing unavailable: ${it.message}"; NativeAudio.setBackingGains(0f, 0f) }
+        if (result.isFailure && bandMode == BandMode.RECORDING) return@launch
+        struggle = 0f
+        NativeAudio.setBackingGains(if (bandMode == BandMode.OFF) 0f else bandVol, guideGain())
         val exp = Timing.expected(song, speed.toDouble())
         NativeAudio.loadSong(exp.times, exp.counts, exp.midis)
         val clicks = Timing.clicks(song, speed.toDouble(), barEvery, clickThrough)
@@ -154,13 +214,19 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
                 if (j.kind != Kind.MISS || last == null || j.songTime > (last?.songTime ?: 0f)) last = j
                 score += points(j)
                 streak = if (j.kind == Kind.HIT) streak + 1 else if (j.kind == Kind.EXTRA) streak else 0
+                // falling behind raises the guide; clean hits fade it back out
+                struggle = when (j.kind) { Kind.MISS, Kind.WRONG -> struggle + 0.34f; Kind.HIT -> struggle - 0.25f; else -> struggle }.coerceIn(0f, 1.2f)
             }
         }
+        var sentGuide = -1f
         while (true) {
             withFrameNanos { }
             songTime = NativeAudio.songTime()
             val n = NativeAudio.poll(buf)
             if (n > 0) apply(Judgement.unpack(buf, n))
+            struggle *= 0.997f
+            val g = guideGain()
+            if (abs(g - sentGuide) > 0.01f) { NativeAudio.setBackingGains(if (bandMode == BandMode.OFF) 0f else bandVol, g); sentGuide = g }
             if (songTime > end || stopRequested) break
         }
         val fin = FloatArray(4096 * Judgement.FLOATS)
@@ -177,8 +243,14 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
 
     when (phase) {
         Phase.SETUP -> Setup(song, versions, versionIdx, { versionIdx = it }, versions.map { progress.best(it.progressKey(songId)) }, speed, { speed = it }, clickThrough, { clickThrough = it }, ready, error,
-            speakerTip = clickThrough && route == AudioRoute.SPEAKER, calibrated = calibrated, routeLabel = route.label,
-            onBack = onBack, onCalibrate = onCalibrate, onStart = { start() },
+            speakerTip = clickThrough && route == AudioRoute.SPEAKER && bandMode == BandMode.OFF && guideMode == GuideMode.OFF, calibrated = calibrated, routeLabel = route.label,
+            onBack = onBack, onCalibrate = onCalibrate, onStart = { start() }, preparing = preparing,
+            backing = {
+                BackingCard(bandMode, { bandMode = it; bprefs.set(songId, band = it) }, guideMode, { guideMode = it; bprefs.set(songId, guide = it) },
+                    bandVol, { bandVol = it; bprefs.set(songId, volume = it) }, recName, { picker.launch(arrayOf("audio/*")) },
+                    recStart, { recStart = it; bprefs.set(songId, recStart = it) }, hasParts = base.backing?.parts?.isNotEmpty() == true,
+                    speaker = route == AudioRoute.SPEAKER, error = backingError)
+            },
             overview = { SongMinimap(song, times, -1.0, song.endTime / speed, emptyMap(), it) }) {
             Highway(song, speed.toDouble(), times, beats, barEvery, (times.firstOrNull() ?: 0.0) - 0.15, emptyMap(), it)
         }
@@ -199,7 +271,8 @@ private fun PlayContent(base: Song, songId: String, onBack: () -> Unit, onCalibr
 private fun Setup(
     song: Song, versions: List<Version>, selected: Int, onSelect: (Int) -> Unit, bests: List<ProgressStore.Best?>, speed: Float, onSpeed: (Float) -> Unit, clickThrough: Boolean, onClick: (Boolean) -> Unit,
     ready: Boolean, error: String?, speakerTip: Boolean, calibrated: Boolean, routeLabel: String,
-    onBack: () -> Unit, onCalibrate: () -> Unit, onStart: () -> Unit, overview: @Composable (Modifier) -> Unit,
+    onBack: () -> Unit, onCalibrate: () -> Unit, onStart: () -> Unit, preparing: String?, backing: @Composable () -> Unit,
+    overview: @Composable (Modifier) -> Unit,
     preview: @Composable (Modifier) -> Unit,
 ) {
     MuTopBar("", onBack)
@@ -262,10 +335,12 @@ private fun Setup(
                     uncheckedThumbColor = MuColors.textMuted, uncheckedTrackColor = MuColors.surfaceHi, uncheckedBorderColor = MuColors.stroke))
             }
         }
+        backing()
         if (speakerTip) Banner("The mic also hears speaker clicks. Headphones give cleaner scoring.", MuColors.cyan)
         if (!calibrated) Banner("Not calibrated for $routeLabel: timing may be off by tens of ms.", MuColors.ok, action = "Calibrate", onAction = onCalibrate)
         if (error != null) Banner(error, MuColors.wrong)
-        ChunkyButton(if (ready) "Start" else "Starting audio…", onStart, Modifier.fillMaxWidth(), icon = Icons.Filled.PlayArrow, enabled = ready, height = 66.dp)
+        ChunkyButton(preparing ?: if (ready) "Start" else "Starting audio…", onStart, Modifier.fillMaxWidth(), icon = Icons.Filled.PlayArrow,
+            enabled = ready && preparing == null, height = 66.dp)
     }
 }
 
@@ -325,6 +400,88 @@ private fun Meter(amount: Float) {
     val c = levelColor(lit * 2)
     Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         for (i in 0 until 5) Box(Modifier.size(width = 16.dp, height = 6.dp).clip(RoundedCornerShape(3.dp)).background(if (i < lit) c else Color(0x1FFFFFFF)))
+    }
+}
+
+/** Band (off / synth / your recording) with volume and alignment, and the guide mode. */
+@Composable
+private fun BackingCard(
+    band: BandMode, onBand: (BandMode) -> Unit, guide: GuideMode, onGuide: (GuideMode) -> Unit, volume: Float, onVolume: (Float) -> Unit,
+    recName: String?, onPick: () -> Unit, recStart: Float, onRecStart: (Float) -> Unit, hasParts: Boolean, speaker: Boolean, error: String?,
+) {
+    MuCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(MuColors.primary) { WaveGlyph(Modifier.size(22.dp), Color.White) }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Backing", style = MaterialTheme.typography.titleMedium, color = MuColors.text)
+                Text(when (band) {
+                    BandMode.OFF -> "Just you and the metronome"
+                    BandMode.SYNTH -> if (hasParts) "The song's other instruments, synthesised" else "Bass and drums generated from the tab"
+                    BandMode.RECORDING -> recName ?: "Pick an audio file of the song"
+                }, color = MuColors.textMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Segmented(BandMode.entries, band, { it.label }, onBand)
+        if (band == BandMode.RECORDING) {
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Song starts at", color = MuColors.textDim, modifier = Modifier.weight(1f))
+                Nudge("−") { onRecStart(((recStart - 0.1f) * 10).roundToInt() / 10f) }
+                Text("%.1f s".format(recStart), color = MuColors.text, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 10.dp))
+                Nudge("+") { onRecStart(((recStart + 0.1f) * 10).roundToInt() / 10f) }
+            }
+            Slider(recStart.coerceIn(-5f, 60f), { onRecStart((it * 10).roundToInt() / 10f) }, valueRange = -5f..60f,
+                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = MuColors.primary, inactiveTrackColor = Color(0x22FFFFFF)))
+            Text("Where the first note of the tab falls in the recording. The recording slows down with the tempo, keeping its pitch.",
+                color = MuColors.textMuted, fontSize = 12.sp)
+            Spacer(Modifier.height(8.dp))
+            Box(Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0x14FFFFFF)).clickable(onClick = onPick).padding(horizontal = 14.dp, vertical = 9.dp)) {
+                Text(if (recName == null) "CHOOSE AUDIO FILE" else "CHANGE FILE", color = MuColors.primary, fontWeight = FontWeight.Black, fontSize = 13.sp)
+            }
+        }
+        if (band != BandMode.OFF) {
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Volume", color = MuColors.textDim, modifier = Modifier.width(72.dp))
+                Slider(volume, onVolume, Modifier.weight(1f), valueRange = 0f..1f,
+                    colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = MuColors.primary, inactiveTrackColor = Color(0x22FFFFFF)))
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text("GUIDE", style = OverlineStyle)
+        Spacer(Modifier.height(6.dp))
+        Segmented(GuideMode.entries, guide, { it.label }, onGuide)
+        Spacer(Modifier.height(6.dp))
+        Text("The guide plays your part softly. \"When I fall behind\" brings it in after misses and fades it out as you catch up.",
+            color = MuColors.textMuted, fontSize = 12.sp)
+        if (speaker && (band != BandMode.OFF || guide != GuideMode.OFF)) {
+            Spacer(Modifier.height(10.dp))
+            Banner("On the phone speaker the mic hears the backing too. Use headphones for fair scoring.", MuColors.ok)
+        }
+        if (error != null) { Spacer(Modifier.height(10.dp)); Banner(error, MuColors.wrong) }
+    }
+}
+
+@Composable
+private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0x10FFFFFF)).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (o in options) {
+            val sel = o == selected
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (sel) MuColors.surfaceHi else Color.Transparent)
+                .clickable { onSelect(o) }.padding(vertical = 9.dp, horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                Text(label(o), color = if (sel) MuColors.text else MuColors.textMuted, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Nudge(label: String, onClick: () -> Unit) {
+    Box(Modifier.size(34.dp).clip(CircleShape).background(MuColors.surfaceHi).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        Text(label, color = MuColors.text, fontWeight = FontWeight.Black, fontSize = 18.sp)
     }
 }
 

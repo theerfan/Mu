@@ -9,6 +9,7 @@
 #include <vector>
 #include "mu/practice.h"
 #include "mu/spsc.h"
+#include "mu/synth.h"
 
 namespace mu {
 
@@ -40,6 +41,11 @@ class AudioEngine : public oboe::AudioStreamDataCallback, public oboe::AudioStre
   int onsets(double* out, int max);
   void loadSong(const ExpectedEvent* ev, int n);
   bool startPlay(const double* clickT, const bool* accent, int n, double leadInSec, float clickGain);
+  // Backing: two prerendered mono tracks (band, guide) whose sample 0 is song time -prerollSec, mixed under the
+  // clicks while a song plays. Replacing them briefly mutes the backing (never call while playing).
+  void setBacking(std::vector<int16_t>&& band, std::vector<int16_t>&& guide, double prerollSec);
+  void setBackingGains(float band, float guide) { bandGain_.store(band); guideGain_.store(guide); }
+  int sampleRate() const { return sr_; }
   int poll(Judgement* out, int max);
   int finishPlay(Judgement* out, int max);
   void stopAll();
@@ -74,6 +80,11 @@ class AudioEngine : public oboe::AudioStreamDataCallback, public oboe::AudioStre
   std::vector<long long> clickFrame_[2]; std::vector<uint8_t> clickAccent_[2];
   std::atomic<int> clickCount_[2]; std::atomic<int> activeBank_{-1}; std::atomic<float> clickGain_{0.5f};
   std::vector<float> clickHi_, clickLo_;
+  // backing tracks (int16 to halve memory); the callback reads them only while backingReady_ && backingPlaying_
+  std::vector<int16_t> band_, guide_; long long backingPreroll_ = 0;
+  std::atomic<bool> backingReady_{false}, backingPlaying_{false};
+  std::atomic<float> bandGain_{0.f}, guideGain_{0.f};
+  float bandG_ = 0.f, guideG_ = 0.f;  // callback-owned smoothed gains
   // seqlock'd mapping data written by the analysis thread / callback
   std::atomic<unsigned> tsSeq_{0};
   std::atomic<long long> inTsPos_{0}, outTsPos_{0}, inTsNs_{0}, outTsNs_{0};

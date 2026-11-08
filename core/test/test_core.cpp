@@ -11,6 +11,7 @@
 #include <vector>
 #include "mu/practice.h"
 #include "mu/spsc.h"
+#include "mu/synth.h"
 
 static std::atomic<long> gAllocs{0};
 void* operator new(size_t n) { gAllocs.fetch_add(1, std::memory_order_relaxed); if (void* p = std::malloc(n ? n : 1)) return p; throw std::bad_alloc(); }
@@ -136,8 +137,43 @@ static void testPlay(int sr) {
   CHECK(extras == 0, "@%d: no Extra inside the song (the E4 after the last event is outside the song range); extras=%d", sr, extras);
 }
 
+static float tunerHz(const std::vector<float>& x, int sr, size_t from, size_t to) {
+  mu::Tuner t(sr); gdsp::PitchResult p, last; float db; int n = 0;
+  for (size_t i = from; i + 256 <= to; i += 256) if (t.feed(&x[i], 256, p, db) && p.voiced) { last = p; ++n; }
+  return n ? last.freqHz : 0.f;
+}
+
+static void testSynth() {
+  const int sr = 48000;
+  std::vector<mu::SynthNote> notes(3);
+  notes[0].t = 0.1; notes[0].dur = 1.0; notes[0].midi = 45; notes[0].voice = mu::Voice::Pluck;   // A2
+  notes[1].t = 1.5; notes[1].dur = 1.0; notes[1].midi = 33; notes[1].voice = mu::Voice::Bass;    // A1 (55 Hz, below the tuner range)
+  notes[2].t = 1.5; notes[2].midi = 36; notes[2].voice = mu::Voice::Drums;
+  std::vector<float> x(3 * sr, 0.f);
+  mu::renderNotes(notes.data(), (int)notes.size(), sr, x.data(), (long long)x.size());
+  float pk = 0; for (float v : x) pk = std::max(pk, std::fabs(v));
+  const float hz = tunerHz(x, sr, (size_t)(0.15 * sr), (size_t)(0.9 * sr));
+  CHECK(pk > 0.1f && pk < 4.f && std::fabs(hz - 110.f) < 1.5f, "synth: plucked A2 reads %.2f Hz on the tuner (peak %.2f)", hz, pk);
+  float pre = 0; for (int i = 0; i < (int)(0.09 * sr); ++i) pre = std::max(pre, std::fabs(x[i]));
+  CHECK(pre == 0.f, "synth: silent before the first note");
+  auto q = mu::toInt16(x, 0.9f); int16_t qm = 0; for (auto v : q) qm = std::max<int16_t>(qm, (int16_t)std::abs(v));
+  CHECK(std::abs(qm - 29490) < 40, "synth: int16 peak-normalised to 0.9 (%d)", qm);
+}
+
+static void testStretch() {
+  const int sr = 44100;
+  std::vector<float> s(sr);
+  for (int i = 0; i < sr; ++i) s[i] = 0.5f * (float)std::sin(2 * M_PI * 220.0 * i / sr);
+  auto slow = mu::timeStretch(s.data(), (long long)s.size(), sr, 0.5);
+  CHECK(std::abs((long)slow.size() - 2 * sr) <= 1, "stretch x0.5: %zu samples (want %d)", slow.size(), 2 * sr);
+  const float hz = tunerHz(slow, sr, sr / 2, (size_t)(1.5 * sr));
+  CHECK(std::fabs(hz - 220.f) < 1.5f, "stretch x0.5 keeps pitch: %.2f Hz (want 220)", hz);
+  auto up = mu::resampleLinear(s.data(), (long long)s.size(), 44100, 48000);
+  CHECK(std::abs((long)up.size() - 48000) <= 2 && std::fabs(tunerHz(up, 48000, 4800, 43200) - 220.f) < 1.5f, "resample 44.1k -> 48k: %zu samples, pitch kept", up.size());
+}
+
 int main() {
-  testSpsc(); testCalib(); testTuner(); testPlay(48000); testPlay(44100);
+  testSpsc(); testCalib(); testTuner(); testSynth(); testStretch(); testPlay(48000); testPlay(44100);
   std::printf("== %d passed, %d failed\n", pass, fail);
   return fail ? 1 : 0;
 }
