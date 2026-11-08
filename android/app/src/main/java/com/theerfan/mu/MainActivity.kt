@@ -8,15 +8,29 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.lifecycleScope
+import com.theerfan.mu.online.SharedLinks
 import com.theerfan.mu.song.SongRepository
+import com.theerfan.mu.ui.SearchScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.theerfan.mu.ui.CalibrationScreen
 import com.theerfan.mu.ui.HomeScreen
 import com.theerfan.mu.ui.MuTheme
@@ -38,6 +52,7 @@ class MainActivity : ComponentActivity() {
     fun requestMic() = micPermission.launch(Manifest.permission.RECORD_AUDIO)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge(SystemBarStyle.dark(Color.Transparent.toArgb()), SystemBarStyle.dark(Color.Transparent.toArgb()))
         super.onCreate(savedInstanceState)
         repo = SongRepository(applicationContext)
         micGranted.value = hasMic()
@@ -46,14 +61,25 @@ class MainActivity : ComponentActivity() {
         setContent {
             MuTheme {
                 val nav = rememberNavController()
-                NavHost(nav, startDestination = "home") {
+                NavHost(
+                    nav, startDestination = "home",
+                    enterTransition = { slideIntoContainer(SlideDirection.Start, tween(280)) + fadeIn(tween(280)) },
+                    exitTransition = { fadeOut(tween(200)) },
+                    popEnterTransition = { fadeIn(tween(200)) },
+                    popExitTransition = { slideOutOfContainer(SlideDirection.End, tween(260)) + fadeOut(tween(260)) },
+                ) {
                     composable("home") {
                         HomeScreen(
                             repo = repo, version = libraryVersion.intValue,
                             onChanged = { libraryVersion.intValue++ },
                             onPlay = { id -> nav.navigate("play/" + Uri.encode(id)) },
                             onTuner = { nav.navigate("tuner") }, onCalibrate = { nav.navigate("calibrate") },
+                            onSearch = { nav.navigate("search") },
                         )
+                    }
+                    composable("search") {
+                        SearchScreen(repo, onBack = { nav.popBackStack() }, onChanged = { libraryVersion.intValue++ },
+                            onOpen = { id -> nav.navigate("play/" + Uri.encode(id)) { popUpTo("home") } })
                     }
                     composable("tuner") { TunerScreen(hasMic = micGranted.value, requestMic = ::requestMic, onBack = { nav.popBackStack() }) }
                     composable("calibrate") { CalibrationScreen(hasMic = micGranted.value, requestMic = ::requestMic, onBack = { nav.popBackStack() }) }
@@ -86,9 +112,10 @@ class MainActivity : ComponentActivity() {
                     @Suppress("DEPRECATION")
                     val uri: Uri? = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
                     else intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                     when {
                         uri != null -> repo.importUri(uri)
-                        intent.getStringExtra(Intent.EXTRA_TEXT) != null -> repo.importText(intent.getStringExtra(Intent.EXTRA_TEXT)!!)
+                        text != null -> SharedLinks.find(text)?.let { importLink(it); return } ?: repo.importAny(text, intent.getStringExtra(Intent.EXTRA_SUBJECT))
                         else -> return
                     }
                 }
@@ -99,5 +126,16 @@ class MainActivity : ComponentActivity() {
         result.onSuccess { Toast.makeText(this, "Imported “${it.song.title}”", Toast.LENGTH_SHORT).show(); libraryVersion.intValue++ }
             .onFailure { Toast.makeText(this, "Import failed: ${it.message}", Toast.LENGTH_LONG).show() }
         setIntent(Intent(Intent.ACTION_MAIN))
+    }
+
+    /** A shared Songsterr/Classtab link: download and convert in the background. */
+    private fun importLink(link: SharedLinks.Link) {
+        Toast.makeText(this, "Downloading tab…", Toast.LENGTH_SHORT).show()
+        setIntent(Intent(Intent.ACTION_MAIN))
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) { runCatching { repo.save(SharedLinks.download(link)) } }
+                .onSuccess { Toast.makeText(this@MainActivity, "Imported “${it.song.title}”", Toast.LENGTH_SHORT).show(); libraryVersion.intValue++ }
+                .onFailure { Toast.makeText(this@MainActivity, "Import failed: ${it.message}", Toast.LENGTH_LONG).show() }
+        }
     }
 }
